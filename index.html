@@ -141,7 +141,6 @@ header {
   background: #000;
 }
 
-/* FIX: player-wrap must be position:relative */
 .player-wrap {
   flex: 1;
   position: relative;
@@ -162,18 +161,22 @@ header {
   z-index: 2;
 }
 
-/* YouTube player container - FIXED for audio-only bug */
-#yt-player-div {
+/* YouTube Wrapper - OPRAVENO */
+#yt-wrapper {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
-  background: transparent;   /* ← This was the problem */
+  display: none;
+  background: #000;
   z-index: 1;
 }
 
-/* unused raw iframe */
+#yt-player-div {
+  width: 100%;
+  height: 100%;
+}
+
 #yt-frame { display: none; }
 
 /* Empty state */
@@ -228,7 +231,6 @@ header {
   z-index: 5;
 }
 
-/* Rest of the CSS (comments, side panel, etc.) stays exactly the same */
 .comments-panel { height: 220px; flex-shrink: 0; background: var(--s1); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .comments-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .comments-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); }
@@ -253,7 +255,7 @@ header {
 .spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* Side panel styles (unchanged) */
+/* Side panel styles */
 .side { width: 300px; flex-shrink: 0; background: var(--s1); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .side-scroll { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 18px; }
 .section { display:flex; flex-direction:column; gap:9px; }
@@ -293,7 +295,6 @@ input[type=text]:focus { border-color:var(--accent); }
 </head>
 <body>
 
-<!-- HEADER -->
 <header>
   <div class="logo">
     <div class="logo-mark">
@@ -320,13 +321,14 @@ input[type=text]:focus { border-color:var(--accent); }
   </div>
 </header>
 
-<!-- LAYOUT -->
 <div class="layout">
 
   <div class="main">
     <div class="player-wrap">
       <video id="hls-video" controls></video>
-      <div id="yt-player-div"></div>
+      <div id="yt-wrapper">
+        <div id="yt-player-div"></div>
+      </div>
       <iframe id="yt-frame" style="display:none"></iframe>
 
       <div class="empty-state" id="empty-state">
@@ -338,7 +340,6 @@ input[type=text]:focus { border-color:var(--accent); }
       <div class="yt-notice" id="yt-notice">YouTube sync uses the IFrame API — play/pause/seek all sync</div>
     </div>
 
-    <!-- COMMENTS (unchanged) -->
     <div class="comments-panel" id="comments-panel">
       <div class="comments-header">
         <span class="comments-title">Comments</span>
@@ -355,7 +356,6 @@ input[type=text]:focus { border-color:var(--accent); }
     </div>
   </div>
 
-  <!-- SIDE PANEL (unchanged) -->
   <div class="side">
     <div class="side-scroll">
       <div class="section">
@@ -427,7 +427,6 @@ input[type=text]:focus { border-color:var(--accent); }
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// (All the JavaScript is exactly the same as the last version — only the CSS was changed to fix the video)
 let peer = null, conn = null, hls = null;
 let ytPlayer = null;
 let ytPlayerReady = false;
@@ -445,7 +444,7 @@ const SEEK_THRESH = 1.2;
 const IGNORE_MS  = 300;
 
 const hlsVideo   = document.getElementById('hls-video');
-const ytPlayerDiv = document.getElementById('yt-player-div');
+const ytWrapper  = document.getElementById('yt-wrapper'); /* OPRAVENO */
 const emptyState = document.getElementById('empty-state');
 const syncToast  = document.getElementById('sync-toast');
 const urlInput   = document.getElementById('url-input');
@@ -560,7 +559,7 @@ function loadYouTube(videoId, broadcast = true) {
   hlsVideo.style.display = 'none';
   if (hls) { hls.destroy(); hls = null; }
 
-  ytPlayerDiv.style.display = 'block';
+  ytWrapper.style.display = 'block'; /* OPRAVENO */
   setPills('yt');
   showCommentsPanel(true);
   ytNotice.style.display = 'block';
@@ -589,7 +588,7 @@ function loadKick(url, broadcast = true) {
   currentMode = 'kick';
   currentYtId = null;
 
-  ytPlayerDiv.style.display = 'block';
+  ytWrapper.style.display = 'none'; /* OPRAVENO */
   if (ytPlayerReady) { try { ytPlayer.stopVideo(); } catch(e) {} }
   ytNotice.style.display = 'none';
 
@@ -620,7 +619,6 @@ function loadKick(url, broadcast = true) {
   if (broadcast) { send('load', { mode: 'kick', url }); log('URL shared with friend', 'ok'); }
 }
 
-// HLS events, PeerJS, onData, hardSync, shareURL, comments, etc. — unchanged from last version
 hlsVideo.addEventListener('play', () => { if (isIgnoring()) return; send('play', { time: hlsVideo.currentTime }); log('▶ play sent @ ' + fmt(hlsVideo.currentTime)); });
 hlsVideo.addEventListener('pause', () => { if (isIgnoring()) return; send('pause', { time: hlsVideo.currentTime }); log('⏸ pause sent @ ' + fmt(hlsVideo.currentTime)); });
 hlsVideo.addEventListener('seeked', () => {
