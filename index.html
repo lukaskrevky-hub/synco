@@ -9,21 +9,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-app: #09090b;       /* Úplné pozadí (téměř černá) */
-    --bg-panel: #18181b;     /* Pozadí panelů (tmavě šedá) */
-    --bg-hover: #27272a;     /* Zvýraznění při najetí */
-    --border: #27272a;       /* Jemné okraje panelů */
-    
-    --purple: #9333ea;       /* Hlavní fialová barva */
-    --purple-hover: #a855f7; /* Světlejší fialová */
+    --bg-app: #09090b;
+    --bg-panel: #18181b;
+    --bg-hover: #27272a;
+    --border: #27272a;
+    --purple: #9333ea;
+    --purple-hover: #a855f7;
     --purple-glow: rgba(147, 51, 234, 0.15);
-    
-    --teal: #2dd4bf;         /* Tyrkysová pro stav 'Připojeno' */
+    --teal: #2dd4bf;
     --teal-bg: rgba(45, 212, 191, 0.1);
-    
-    --red: #fb7185;          /* Červená pro odpojení/mazání */
+    --red: #fb7185;
     --red-bg: rgba(251, 113, 133, 0.1);
-
     --text-main: #f8fafc;
     --text-muted: #a1a1aa;
   }
@@ -31,21 +27,9 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg-app); color: var(--text-main); font-family: 'Outfit', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   
-  /* Horní ovládací panel - "Plovoucí" design */
-  .toolbar { 
-    background: var(--bg-panel); 
-    margin: 15px 15px 0 15px; 
-    padding: 12px 20px; 
-    display: flex; gap: 20px; flex-wrap: wrap; align-items: center; 
-    border: 1px solid var(--border); 
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    z-index: 10; 
-  }
-  
+  .toolbar { background: var(--bg-panel); margin: 15px 15px 0 15px; padding: 12px 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10; }
   .logo { font-size: 20px; font-weight: 700; color: var(--text-main); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
   .logo span { color: var(--purple); }
-
   .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 250px; }
   .group-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
   
@@ -56,29 +40,49 @@
   button { background: var(--purple); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; white-space: nowrap; }
   button:hover { background: var(--purple-hover); transform: translateY(-1px); }
   button:active { transform: translateY(0); }
-  
   button.secondary { background: var(--bg-hover); color: var(--text-main); border: 1px solid var(--border); }
   button.secondary:hover { background: #3f3f46; border-color: #52525b; }
   
-  /* Status indikátory */
   .status { font-size: 13px; padding: 8px 14px; border-radius: 8px; background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
-  
   .status.connected { background: var(--teal-bg); color: var(--teal); border-color: rgba(45, 212, 191, 0.2); }
   .status.connected::before { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
-  
   .status.error { background: var(--red-bg); color: var(--red); border-color: rgba(251, 113, 133, 0.2); }
   .status.error::before { background: var(--red); box-shadow: 0 0 8px var(--red); }
   
-  /* Kino prostor (Spodní část) */
   .main-area { display: flex; flex: 1; min-height: 0; padding: 15px; gap: 15px; }
   
-  /* Přehrávač */
-  .video-container { flex: 1; position: relative; background: #000; min-width: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
+  /* Levá část: Video + Komentáře */
+  .left-panel { flex: 1; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
+  
+  .video-container { flex: 1; position: relative; background: #000; min-height: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   video { width: 100%; height: 100%; outline: none; background: #000; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
+
+  /* Sekce komentářů */
+  .comments-container { height: 260px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: none; }
+  .comments-container.active { display: flex; }
+  
+  .comments-header { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); flex-shrink: 0; }
+  .comments-header span { font-weight: 700; color: var(--text-main); font-size: 15px; }
+  
+  .api-wrap { display: flex; gap: 10px; align-items: center; }
+  .api-wrap input { padding: 6px 12px; font-size: 12px; width: 200px; }
+  .api-wrap button { padding: 6px 12px; font-size: 12px; }
+  
+  .comments-list { flex: 1; overflow-y: auto; padding: 15px 20px; display: flex; flex-direction: column; gap: 15px; }
+  .comments-list::-webkit-scrollbar { width: 6px; }
+  .comments-list::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+  
+  .comment { display: flex; gap: 12px; font-size: 13px; line-height: 1.5; }
+  .comment img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+  .comment-content { flex: 1; min-width: 0; }
+  .comment-author { font-weight: 700; color: var(--purple-hover); margin-right: 8px; }
+  .comment-date { color: var(--text-muted); font-size: 11px; }
+  .comment-text { color: var(--text-main); margin-top: 4px; word-break: break-word; }
+  .comment-system { color: var(--text-muted); text-align: center; font-style: italic; padding: 20px 0; }
 
   /* Playlist panel */
   .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
@@ -90,7 +94,6 @@
   .playlist-items::-webkit-scrollbar { width: 6px; }
   .playlist-items::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
   
-  /* Jednotlivé položky ve frontě */
   .playlist-item { background: var(--bg-app); border: 1px solid var(--border); padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; position: relative; display: flex; gap: 12px; align-items: center; padding-right: 40px; }
   .playlist-item:hover { border-color: #3f3f46; transform: translateX(2px); }
   .playlist-item.active { border-color: var(--purple); background: var(--purple-glow); }
@@ -103,7 +106,6 @@
   .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 18px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; transition: 0.2s; }
   .btn-remove:hover { background: var(--red-bg); color: var(--red); }
 
-  /* Úvodní obrazovka */
   #start-overlay { position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: var(--bg-panel); border: 1px solid var(--border); padding: 50px 40px; border-radius: 20px; text-align: center; max-width: 440px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
   .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--purple-glow); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--purple); }
@@ -119,7 +121,7 @@
   <div class="start-box">
     <div class="icon">🍿</div>
     <h2>Vítej v Synco</h2>
-    <p>Připojuješ se do místnosti <span id="room-name-display"></span>. Kliknutím níže aktivuješ kino režim a synchronizaci zvuku.</p>
+    <p>Připojuješ se do místnosti <span id="room-name-display"></span>. Kliknutím níže aktivuješ kino režim a synchronizaci.</p>
     <button onclick="startApp()">Vstoupit do kina</button>
   </div>
 </div>
@@ -145,9 +147,24 @@
 </div>
 
 <div class="main-area">
-  <div class="video-container">
-    <div id="layer-yt" class="player-layer"><div id="yt-player"></div></div>
-    <div id="layer-kick" class="player-layer"><video id="kick-player" controls></video></div>
+  <div class="left-panel">
+    <div class="video-container">
+      <div id="layer-yt" class="player-layer"><div id="yt-player"></div></div>
+      <div id="layer-kick" class="player-layer"><video id="kick-player" controls></video></div>
+    </div>
+    
+    <div class="comments-container" id="comments-section">
+      <div class="comments-header">
+        <span>YouTube Komentáře <span id="comments-count" style="color:var(--text-muted); font-weight:normal; font-size:13px; margin-left:8px;"></span></span>
+        <div class="api-wrap">
+          <input type="password" id="yt-api-key" placeholder="YouTube Data API Key">
+          <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit a Načíst</button>
+        </div>
+      </div>
+      <div class="comments-list" id="comments-list">
+        <div class="comment-system">Pro zobrazení komentářů zadej API klíč a spusť YouTube video. Pokud ho zadá parťák, uvidíš komentáře automaticky.</div>
+      </div>
+    </div>
   </div>
   
   <div class="playlist-panel">
@@ -155,13 +172,20 @@
       <span>Fronta videí</span>
       <span class="count" id="playlist-count">0</span>
     </div>
-    <div class="playlist-items" id="playlist-items">
-      </div>
+    <div class="playlist-items" id="playlist-items"></div>
   </div>
 </div>
 
 <script>
-  // --- ZÁKLADNÍ NASTAVENÍ MÍSTNOSTI ---
+  // --- ZÁKLADNÍ BEZPEČNOST (Zpomalovač zvědavců) ---
+  document.addEventListener('contextmenu', event => event.preventDefault());
+  document.onkeydown = function(e) {
+    if(e.keyCode == 123) return false; // F12
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
+    if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
+  }
+
   const params = new URLSearchParams(window.location.search);
   let roomName = params.get('room');
   if (!roomName) {
@@ -174,6 +198,13 @@
 
   const storageKey = 'synco-data-' + roomName;
   let playlist = []; 
+  let currentYtId = null;
+
+  // Načtení API klíče
+  const savedKey = localStorage.getItem('synco_yt_api_key');
+  if (savedKey) {
+    document.getElementById('yt-api-key').value = savedKey;
+  }
 
   function loadLocalData() {
     const data = localStorage.getItem(storageKey);
@@ -199,6 +230,16 @@
       url: document.getElementById('url-input').value.trim(),
       playlist: playlist
     }));
+  }
+
+  function saveApiKeyAndFetch() {
+    const key = document.getElementById('yt-api-key').value.trim();
+    if (key) {
+      localStorage.setItem('synco_yt_api_key', key);
+      if (currentMode === 'yt' && currentYtId) {
+        fetchAndShareComments();
+      }
+    }
   }
 
   async function fetchMetadata(url) {
@@ -327,6 +368,12 @@
     
     if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
 
+    // Přijetí komentářů od parťáka
+    if (data.action === 'comments_data') {
+      renderComments(data.items, data.totalResults);
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
+    }
+
     if (currentMode === 'yt' && ytReady) {
       if (data.action === 'play') { ytPlayer.seekTo(data.time, true); ytPlayer.playVideo(); }
       else if (data.action === 'pause') { ytPlayer.seekTo(data.time, true); ytPlayer.pauseVideo(); }
@@ -427,14 +474,24 @@
 
     if (ytMatch && ytReady) {
       currentMode = 'yt';
+      currentYtId = ytMatch[1];
       document.getElementById('layer-kick').classList.remove('active');
       document.getElementById('layer-yt').classList.add('active');
+      document.getElementById('comments-section').classList.add('active'); // Zobrazí komentáře
+      
       if (hls) { hls.destroy(); kickVideo.pause(); }
-      ytPlayer.loadVideoById(ytMatch[1]);
+      ytPlayer.loadVideoById(currentYtId);
+      
+      // Pokus o načtení komentářů
+      fetchAndShareComments();
+
     } else if (url.endsWith('.m3u8')) {
       currentMode = 'kick';
+      currentYtId = null;
       document.getElementById('layer-yt').classList.remove('active');
       document.getElementById('layer-kick').classList.add('active');
+      document.getElementById('comments-section').classList.remove('active'); // Skryje komentáře u Kicku
+      
       if (ytReady) ytPlayer.pauseVideo();
 
       if (Hls.isSupported()) {
@@ -450,6 +507,71 @@
     }
   }
 
+  // --- LOGIKA KOMENTÁŘŮ ---
+  async function fetchAndShareComments() {
+    const apiKey = localStorage.getItem('synco_yt_api_key');
+    const list = document.getElementById('comments-list');
+    
+    if (!apiKey) {
+      list.innerHTML = '<div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoru. Pokud ho zadá parťák a pustí video, uvidíš komentáře automaticky.</div>';
+      return;
+    }
+    if (!currentYtId) return;
+
+    list.innerHTML = '<div class="comment-system">Načítám komentáře...</div>';
+    
+    try {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${currentYtId}&maxResults=50&order=relevance&key=${apiKey}`);
+      const data = await res.json();
+      
+      if (data.error) { 
+        list.innerHTML = `<div class="comment-system" style="color:var(--red)">Chyba API: ${data.error.message}</div>`; 
+        return; 
+      }
+      
+      const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
+      renderComments(snippets, data.pageInfo?.totalResults);
+      
+      // Pošli je kamarádovi!
+      if (conn && conn.open) {
+        sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults });
+      }
+      
+    } catch(e) {
+      list.innerHTML = '<div class="comment-system" style="color:var(--red)">Nepodařilo se načíst komentáře. Zkontroluj klíč.</div>';
+    }
+  }
+
+  function renderComments(snippets, totalResults) {
+    const list = document.getElementById('comments-list');
+    document.getElementById('comments-count').innerText = totalResults ? `(${totalResults})` : '';
+    
+    if (!snippets || snippets.length === 0) {
+      list.innerHTML = '<div class="comment-system">Tohle video nemá žádné komentáře.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    snippets.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'comment';
+      
+      // Čas
+      const d = Math.floor((Date.now() - new Date(c.publishedAt)) / 864e5);
+      const timeStr = d === 0 ? 'dnes' : (d === 1 ? 'včera' : `${d} dní zpět`);
+
+      div.innerHTML = `
+        <img src="${c.authorProfileImageUrl || ''}" onerror="this.style.display='none'">
+        <div class="comment-content">
+          <div><span class="comment-author">${c.authorDisplayName}</span><span class="comment-date">${timeStr}</span></div>
+          <div class="comment-text">${c.textDisplay}</div>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // Sledování změn na přehrávačích
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
