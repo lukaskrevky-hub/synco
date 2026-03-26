@@ -10,7 +10,6 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f1215; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   
-  /* Horní ovládací panel */
   .toolbar { background: #161b20; padding: 15px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #242c34; z-index: 10; }
   .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 250px; }
   input { background: #080a0c; border: 1px solid #242c34; color: #fff; padding: 8px 12px; border-radius: 6px; flex: 1; outline: none; }
@@ -21,15 +20,14 @@
   
   .status { font-size: 14px; padding: 6px 10px; border-radius: 4px; background: #3d4d5a; white-space: nowrap; }
   .status.connected { background: #4ade80; color: #0d2318; font-weight: bold; }
+  .status.error { background: #f87171; color: #230d0d; font-weight: bold; }
   
-  /* Prostor pro videa */
   .video-container { flex: 1; position: relative; background: #000; }
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   video { width: 100%; height: 100%; outline: none; }
   iframe { width: 100%; height: 100%; border: none; }
 
-  /* Úvodní obrazovka */
   #start-overlay { position: absolute; inset: 0; background: #0f1215; z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: #161b20; border: 1px solid #242c34; padding: 40px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; }
   .start-box h2 { color: #5b8dee; margin-bottom: 10px; }
@@ -75,21 +73,17 @@
 </div>
 
 <script>
-  // --- ZÁKLADNÍ NASTAVENÍ MÍSTNOSTI ---
   const params = new URLSearchParams(window.location.search);
   let roomName = params.get('room');
   
-  // Pokud uživatel přijde bez odkazu, vygenerujeme mu náhodnou místnost
   if (!roomName) {
     roomName = Math.random().toString(36).substring(2, 8);
     window.history.replaceState(null, '', '?room=' + roomName);
   }
 
-  // Příprava UI
   document.getElementById('room-name-display').innerText = roomName;
   document.getElementById('invite-link').value = window.location.href;
 
-  // --- STAV A PROMĚNNÉ ---
   let peer = null;
   let conn = null;
   let isSyncing = false;
@@ -102,7 +96,17 @@
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
 
-  // --- INICIALIZACE YOUTUBE API ---
+  // Konfigurace STUN serverů (Nutné pro spojení různých zařízení!)
+  const peerConfig = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    }
+  };
+
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -118,26 +122,22 @@
     });
   };
 
-  // --- START APLIKACE (Po kliknutí na Vstoupit) ---
   function startApp() {
     document.getElementById('start-overlay').style.display = 'none';
-    document.getElementById('conn-status').innerText = 'Připojuji...';
+    document.getElementById('conn-status').innerText = 'Vytvářím místnost...';
+    document.getElementById('conn-status').className = 'status';
 
     const hostId = 'synco-room-' + roomName;
 
-    // Pokusíme se vytvořit místnost jako hlavní "Host"
-    peer = new Peer(hostId);
+    peer = new Peer(hostId, peerConfig);
 
     peer.on('open', (id) => {
-      // Povedlo se! Jsem první v místnosti.
       document.getElementById('conn-status').innerText = 'Čekám na parťáka...';
     });
 
-    // Někdo se ke mně připojuje
     peer.on('connection', (c) => {
       setupConnection(c);
       
-      // Pokud už něco sleduji, pošlu mu to, aby se sladil
       setTimeout(() => {
         const currentUrl = document.getElementById('url-input').value.trim();
         if (currentUrl && currentMode !== 'none') {
@@ -145,39 +145,45 @@
           const t = currentMode === 'yt' ? ytPlayer.getCurrentTime() : kickVideo.currentTime;
           sendSync({ action: 'seek', time: t });
         }
-      }, 800);
+      }, 1000);
     });
 
-    // Pokud je "Host" už zabraný (v místnosti už někdo je)
     peer.on('error', (err) => {
       if (err.type === 'unavailable-id') {
-        // Vytvořím si anonymní identitu a připojím se k Hostovi
-        let guestPeer = new Peer();
+        document.getElementById('conn-status').innerText = 'Připojuji se do místnosti...';
+        
+        let guestPeer = new Peer(undefined, peerConfig);
         guestPeer.on('open', () => {
           const c = guestPeer.connect(hostId, { reliable: true });
           setupConnection(c);
+          
+          c.on('error', () => {
+             document.getElementById('conn-status').innerText = 'Chyba připojení!';
+             document.getElementById('conn-status').classList.add('error');
+          });
         });
       } else {
         console.error(err);
+        document.getElementById('conn-status').innerText = 'Chyba sítě!';
+        document.getElementById('conn-status').classList.add('error');
       }
     });
   }
 
-  // Společné nastavení spojení
   function setupConnection(c) {
     if (conn) conn.close();
     conn = c;
     
     conn.on('open', () => {
       document.getElementById('conn-status').innerText = 'Propojeno s parťákem';
-      document.getElementById('conn-status').classList.add('connected');
+      document.getElementById('conn-status').className = 'status connected';
     });
     
     conn.on('data', handleSyncData);
     
     conn.on('close', () => {
       document.getElementById('conn-status').innerText = 'Parťák se odpojil';
-      document.getElementById('conn-status').classList.remove('connected');
+      document.getElementById('conn-status').className = 'status error';
     });
   }
 
@@ -196,7 +202,6 @@
     setTimeout(() => btn.innerText = 'Kopírovat', 2000);
   }
 
-  // --- ZPRACOVÁNÍ PŘÍCHOZÍCH DAT ---
   function handleSyncData(data) {
     isSyncing = true;
 
@@ -220,7 +225,6 @@
     setTimeout(() => { isSyncing = false; }, 300);
   }
 
-  // --- PŘEPÍNÁNÍ A NAČÍTÁNÍ VIDEÍ ---
   function loadMedia(broadcast = false) {
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
@@ -259,12 +263,10 @@
     }
   }
 
-  // --- SLEDOVÁNÍ UDÁLOSTÍ: KICK ---
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
 
-  // --- SLEDOVÁNÍ UDÁLOSTÍ: YOUTUBE ---
   function onYtStateChange(event) {
     if (isSyncing) return;
     const time = ytPlayer.getCurrentTime();
