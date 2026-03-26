@@ -131,7 +131,7 @@
 
   <div class="group" style="flex: 0 1 auto; margin-left: 10px;">
     <span class="group-label">Pozvánka:</span>
-    <input type="text" id="invite-link" readonly onclick="this.select()" style="width: 280px;" title="Kliknutím zkopíruješ">
+    <input type="text" id="invite-link" readonly onclick="this.select()" style="width: 420px;" title="Kliknutím zkopíruješ">
     <button class="secondary" onclick="copyLink()" id="copy-btn">Kopírovat</button>
   </div>
   
@@ -141,7 +141,7 @@
     <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit</button>
   </div>
   
-  <div class="group" style="flex: 1; max-width: 450px;">
+  <div class="group" style="flex: 1; min-width: 300px;">
     <input type="text" id="url-input" placeholder="YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
     <button onclick="handleMediaAction('play')">Pustit</button>
@@ -179,7 +179,6 @@
 </div>
 
 <script>
-  // Blokování klávesových zkratek
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.onkeydown = function(e) {
     if(e.keyCode == 123) return false;
