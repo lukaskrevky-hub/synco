@@ -10,24 +10,42 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f1215; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   
-  .toolbar { background: #161b20; padding: 15px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #242c34; z-index: 10; }
+  /* Horní panel */
+  .toolbar { background: #161b20; padding: 15px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #242c34; z-index: 10; }
   .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 250px; }
   input { background: #080a0c; border: 1px solid #242c34; color: #fff; padding: 8px 12px; border-radius: 6px; flex: 1; outline: none; }
   input:focus { border-color: #5b8dee; }
   input[readonly] { background: #1e252c; color: #7ba4f2; cursor: copy; }
+  
   button { background: #5b8dee; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; }
   button:hover { background: #7ba4f2; }
+  button.secondary { background: #3d4d5a; }
+  button.secondary:hover { background: #4b5f6f; }
   
   .status { font-size: 14px; padding: 6px 10px; border-radius: 4px; background: #3d4d5a; white-space: nowrap; }
   .status.connected { background: #4ade80; color: #0d2318; font-weight: bold; }
   .status.error { background: #f87171; color: #230d0d; font-weight: bold; }
   
-  .video-container { flex: 1; position: relative; background: #000; }
+  /* Rozložení: Video + Playlist */
+  .main-area { display: flex; flex: 1; min-height: 0; }
+  
+  .video-container { flex: 1; position: relative; background: #000; min-width: 0; }
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   video { width: 100%; height: 100%; outline: none; }
   iframe { width: 100%; height: 100%; border: none; }
 
+  /* Playlist na pravé straně */
+  .playlist-panel { width: 320px; background: #161b20; border-left: 1px solid #242c34; display: flex; flex-direction: column; }
+  .playlist-header { padding: 15px; border-bottom: 1px solid #242c34; font-weight: bold; color: #7ba4f2; display: flex; justify-content: space-between; align-items: center;}
+  .playlist-items { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .playlist-item { background: #080a0c; border: 1px solid #242c34; padding: 12px; border-radius: 6px; cursor: pointer; word-break: break-all; font-size: 12px; transition: 0.2s; position: relative; padding-right: 35px; line-height: 1.4; }
+  .playlist-item:hover { border-color: #5b8dee; }
+  .playlist-item.active { border-color: #4ade80; color: #4ade80; }
+  .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #f87171; cursor: pointer; font-weight: bold; font-size: 16px; background: none; border: none; padding: 0; }
+  .btn-remove:hover { color: #ff9999; }
+
+  /* Úvodní obrazovka */
   #start-overlay { position: absolute; inset: 0; background: #0f1215; z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: #161b20; border: 1px solid #242c34; padding: 40px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; }
   .start-box h2 { color: #5b8dee; margin-bottom: 10px; }
@@ -41,21 +59,22 @@
   <div class="start-box">
     <h2>Synco Místnost</h2>
     <p>Identifikátor: <strong id="room-name-display" style="color: #fff;"></strong></p>
-    <p>Kliknutím vstoupíš do místnosti a aktivuješ synchronizaci zvuku a obrazu.</p>
+    <p>Kliknutím vstoupíš do místnosti a aktivuješ synchronizaci.</p>
     <button onclick="startApp()">Vstoupit do místnosti</button>
   </div>
 </div>
 
 <div class="toolbar">
   <div class="group">
-    <span style="font-size: 13px; color: #7d8c99; white-space: nowrap;">Odkaz:</span>
+    <span style="font-size: 13px; color: #7d8c99;">Odkaz:</span>
     <input type="text" id="invite-link" readonly onclick="this.select()">
     <button onclick="copyLink()" id="copy-btn">Kopírovat</button>
   </div>
   
   <div class="group">
-    <input type="text" id="url-input" placeholder="Odkaz na YouTube nebo Kick (.m3u8)">
-    <button onclick="loadMedia(true)">Pustit video</button>
+    <input type="text" id="url-input" placeholder="YouTube nebo Kick (.m3u8)">
+    <button class="secondary" onclick="handleMediaAction('queue')">Do fronty</button>
+    <button onclick="handleMediaAction('play')">Hned pustit</button>
   </div>
   
   <div class="group" style="flex: 0;">
@@ -63,19 +82,25 @@
   </div>
 </div>
 
-<div class="video-container">
-  <div id="layer-yt" class="player-layer">
-    <div id="yt-player"></div>
+<div class="main-area">
+  <div class="video-container">
+    <div id="layer-yt" class="player-layer"><div id="yt-player"></div></div>
+    <div id="layer-kick" class="player-layer"><video id="kick-player" controls></video></div>
   </div>
-  <div id="layer-kick" class="player-layer">
-    <video id="kick-player" controls></video>
+  
+  <div class="playlist-panel">
+    <div class="playlist-header">
+      <span>Fronta videí</span>
+    </div>
+    <div class="playlist-items" id="playlist-items">
+      </div>
   </div>
 </div>
 
 <script>
+  // --- ZÁKLADNÍ NASTAVENÍ MÍSTNOSTI A PAMĚTI ---
   const params = new URLSearchParams(window.location.search);
   let roomName = params.get('room');
-  
   if (!roomName) {
     roomName = Math.random().toString(36).substring(2, 8);
     window.history.replaceState(null, '', '?room=' + roomName);
@@ -84,16 +109,31 @@
   document.getElementById('room-name-display').innerText = roomName;
   document.getElementById('invite-link').value = window.location.href;
 
-  let peer = null;
-  let conn = null;
-  let isSyncing = false;
-  let syncTimeout = null;
-  let currentMode = 'none';
-  
-  let ytPlayer = null;
-  let ytReady = false;
-  let ytLastTime = 0;
-  
+  const storageKey = 'synco-data-' + roomName;
+  let playlist = [];
+
+  // Načtení z paměti prohlížeče
+  function loadLocalData() {
+    const data = localStorage.getItem(storageKey);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (parsed.playlist) playlist = parsed.playlist;
+      if (parsed.url) document.getElementById('url-input').value = parsed.url;
+    }
+    renderPlaylist();
+  }
+
+  // Uložení do paměti prohlížeče
+  function saveLocalData() {
+    localStorage.setItem(storageKey, JSON.stringify({
+      url: document.getElementById('url-input').value.trim(),
+      playlist: playlist
+    }));
+  }
+
+  // --- STAV A PROMĚNNÉ ---
+  let peer = null, conn = null, isSyncing = false, syncTimeout = null;
+  let currentMode = 'none', ytPlayer = null, ytReady = false, ytLastTime = 0;
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
 
@@ -107,6 +147,7 @@
     }
   };
 
+  // --- YOUTUBE API ---
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -115,63 +156,49 @@
   window.onYouTubeIframeAPIReady = function() {
     ytPlayer = new YT.Player('yt-player', {
       playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
-      events: {
-        'onReady': () => { ytReady = true; },
-        'onStateChange': onYtStateChange
-      }
+      events: { 'onReady': () => { ytReady = true; }, 'onStateChange': onYtStateChange }
     });
   };
 
+  // --- PŘIPOJOVACÍ LOGIKA ---
   function startApp() {
     document.getElementById('start-overlay').style.display = 'none';
     document.getElementById('conn-status').innerText = 'Vytvářím místnost...';
-    document.getElementById('conn-status').className = 'status';
+    
+    // Načteme historii videí
+    loadLocalData();
 
     const hostId = 'synco-room-' + roomName;
     peer = new Peer(hostId, peerConfig);
 
     peer.on('open', (id) => {
       document.getElementById('conn-status').innerText = 'Čekám na parťáka...';
+      // Jsem první, pustím si uložené video (pokud nějaké je)
+      if (document.getElementById('url-input').value.trim()) loadMedia(false);
     });
 
     peer.on('connection', (c) => {
       setupConnection(c);
       
-      // Speciální Iniciační blok pro nově příchozího hosta
+      // Iniciační balíček pro nově příchozího - pošleme mu stav I CELOU FRONTU
       setTimeout(() => {
         const currentUrl = document.getElementById('url-input').value.trim();
-        if (currentUrl && currentMode !== 'none') {
-          const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
-          const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
-          
-          sendSync({ 
-            action: 'init', 
-            url: currentUrl, 
-            time: t, 
-            playing: isPlaying 
-          });
-        }
+        const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
+        const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
+        
+        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, playlist: playlist });
       }, 500);
     });
 
     peer.on('error', (err) => {
       if (err.type === 'unavailable-id') {
         document.getElementById('conn-status').innerText = 'Připojuji se do místnosti...';
-        
         let guestPeer = new Peer(undefined, peerConfig);
         guestPeer.on('open', () => {
           const c = guestPeer.connect(hostId, { reliable: true });
           setupConnection(c);
-          
-          c.on('error', () => {
-             document.getElementById('conn-status').innerText = 'Chyba připojení!';
-             document.getElementById('conn-status').classList.add('error');
-          });
+          c.on('error', () => { document.getElementById('conn-status').className = 'status error'; document.getElementById('conn-status').innerText = 'Chyba!'; });
         });
-      } else {
-        console.error(err);
-        document.getElementById('conn-status').innerText = 'Chyba sítě!';
-        document.getElementById('conn-status').classList.add('error');
       }
     });
   }
@@ -179,69 +206,43 @@
   function setupConnection(c) {
     if (conn) conn.close();
     conn = c;
-    
-    conn.on('open', () => {
-      document.getElementById('conn-status').innerText = 'Propojeno s parťákem';
-      document.getElementById('conn-status').className = 'status connected';
-    });
-    
+    conn.on('open', () => { document.getElementById('conn-status').className = 'status connected'; document.getElementById('conn-status').innerText = 'Propojeno s parťákem'; });
     conn.on('data', handleSyncData);
-    
-    conn.on('close', () => {
-      document.getElementById('conn-status').innerText = 'Parťák se odpojil';
-      document.getElementById('conn-status').className = 'status error';
-    });
+    conn.on('close', () => { document.getElementById('conn-status').className = 'status error'; document.getElementById('conn-status').innerText = 'Parťák se odpojil'; });
   }
 
-  function sendSync(data) {
-    if (conn && conn.open && !isSyncing) {
-      conn.send(data);
-    }
-  }
+  function sendSync(data) { if (conn && conn.open && !isSyncing) conn.send(data); }
 
   function copyLink() {
     const linkInput = document.getElementById('invite-link');
     linkInput.select();
     navigator.clipboard.writeText(linkInput.value);
-    const btn = document.getElementById('copy-btn');
-    btn.innerText = 'Zkopírováno!';
-    setTimeout(() => btn.innerText = 'Kopírovat', 2000);
+    document.getElementById('copy-btn').innerText = 'Zkopírováno!';
+    setTimeout(() => document.getElementById('copy-btn').innerText = 'Kopírovat', 2000);
   }
 
+  // --- ZPRACOVÁNÍ DAT OD PARŤÁKA ---
   function handleSyncData(data) {
     isSyncing = true;
     clearTimeout(syncTimeout);
 
-    // Přijetí Iniciačního balíčku
     if (data.action === 'init') {
       document.getElementById('url-input').value = data.url;
-      loadMedia(false); 
+      if (data.playlist) { playlist = data.playlist; saveLocalData(); renderPlaylist(); }
+      if (data.url) loadMedia(false); 
       
-      // Dáme videu chvíli na načtení, pak ho posuneme na správný čas
       setTimeout(() => {
-        if (currentMode === 'yt' && ytReady) {
-          ytPlayer.seekTo(data.time, true);
-          if (data.playing) ytPlayer.playVideo();
-          else ytPlayer.pauseVideo();
-        } else if (currentMode === 'kick') {
-          kickVideo.currentTime = data.time;
-          if (data.playing) kickVideo.play();
-          else kickVideo.pause();
-        }
+        if (currentMode === 'yt' && ytReady) { ytPlayer.seekTo(data.time, true); if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo(); } 
+        else if (currentMode === 'kick') { kickVideo.currentTime = data.time; if (data.playing) kickVideo.play(); else kickVideo.pause(); }
       }, 1500);
-
-      // Blokujeme odesílání zpět po dobu 3 sekund
       syncTimeout = setTimeout(() => { isSyncing = false; }, 3000);
       return;
     }
 
-    if (data.action === 'load') {
-      document.getElementById('url-input').value = data.url;
-      loadMedia(false); 
-      syncTimeout = setTimeout(() => { isSyncing = false; }, 2000);
-      return;
-    }
-    
+    if (data.action === 'load') { document.getElementById('url-input').value = data.url; loadMedia(false); syncTimeout = setTimeout(() => { isSyncing = false; }, 2000); return; }
+    if (data.action === 'queue_add') { addToPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
+    if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
+
     if (currentMode === 'yt' && ytReady) {
       if (data.action === 'play') { ytPlayer.seekTo(data.time, true); ytPlayer.playVideo(); }
       else if (data.action === 'pause') { ytPlayer.seekTo(data.time, true); ytPlayer.pauseVideo(); }
@@ -254,13 +255,80 @@
       else if (data.action === 'seek') { kickVideo.currentTime = data.time; }
     }
 
-    // Standardní odblokování pro běžné akce (play/pause/seek)
     syncTimeout = setTimeout(() => { isSyncing = false; }, 400);
   }
 
+  // --- PLAYLIST LOGIKA ---
+  function handleMediaAction(action) {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) return;
+    
+    if (action === 'play') {
+      addToPlaylist(url, true); // Pro jistotu přidáme i do fronty, když už to pouštíme
+      loadMedia(true);
+    } else if (action === 'queue') {
+      addToPlaylist(url, true);
+      document.getElementById('url-input').value = ''; // Vyčistíme políčko po přidání
+    }
+  }
+
+  function addToPlaylist(url, broadcast = false) {
+    if (!playlist.includes(url)) {
+      playlist.push(url);
+      saveLocalData();
+      renderPlaylist();
+      if (broadcast) sendSync({ action: 'queue_add', url: url });
+    }
+  }
+
+  function removeFromPlaylist(url, broadcast = false) {
+    playlist = playlist.filter(item => item !== url);
+    saveLocalData();
+    renderPlaylist();
+    if (broadcast) sendSync({ action: 'queue_remove', url: url });
+  }
+
+  function renderPlaylist() {
+    const container = document.getElementById('playlist-items');
+    container.innerHTML = '';
+    const currentUrl = document.getElementById('url-input').value.trim();
+
+    playlist.forEach(url => {
+      const div = document.createElement('div');
+      div.className = 'playlist-item' + (url === currentUrl ? ' active' : '');
+      
+      // Zkrácení zobrazení odkazu
+      const displayUrl = url.length > 45 ? url.substring(0, 45) + '...' : url;
+      div.innerText = displayUrl;
+      
+      // Tlačítko na smazání
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn-remove';
+      removeBtn.innerHTML = '✖';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation(); // Zabrání tomu, aby se video po smazání spustilo
+        removeFromPlaylist(url, true);
+      };
+
+      div.appendChild(removeBtn);
+
+      // Kliknutí na položku spustí video
+      div.onclick = () => {
+        document.getElementById('url-input').value = url;
+        loadMedia(true);
+      };
+
+      container.appendChild(div);
+    });
+  }
+
+  // --- NAČÍTÁNÍ VIDEÍ ---
   function loadMedia(broadcast = false) {
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
+
+    saveLocalData();
+    renderPlaylist(); // Aktualizuje zelené podsvícení aktivního videa
 
     if (broadcast) sendSync({ action: 'load', url: url });
 
@@ -270,15 +338,12 @@
       currentMode = 'yt';
       document.getElementById('layer-kick').classList.remove('active');
       document.getElementById('layer-yt').classList.add('active');
-      
       if (hls) { hls.destroy(); kickVideo.pause(); }
       ytPlayer.loadVideoById(ytMatch[1]);
-      
     } else if (url.endsWith('.m3u8')) {
       currentMode = 'kick';
       document.getElementById('layer-yt').classList.remove('active');
       document.getElementById('layer-kick').classList.add('active');
-      
       if (ytReady) ytPlayer.pauseVideo();
 
       if (Hls.isSupported()) {
@@ -291,11 +356,10 @@
         kickVideo.src = url;
         kickVideo.play();
       }
-    } else {
-      alert("Nepodporovaný odkaz. Vlož YouTube odkaz nebo přímý m3u8 stream.");
     }
   }
 
+  // --- SLEDOVÁNÍ UDÁLOSTÍ PŘEHRÁVAČŮ ---
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
@@ -303,12 +367,8 @@
   function onYtStateChange(event) {
     if (isSyncing) return;
     const time = ytPlayer.getCurrentTime();
-    
-    if (event.data === YT.PlayerState.PLAYING) {
-      sendSync({ action: 'play', time: time });
-    } else if (event.data === YT.PlayerState.PAUSED) {
-      sendSync({ action: 'pause', time: time });
-    }
+    if (event.data === YT.PlayerState.PLAYING) sendSync({ action: 'play', time: time });
+    else if (event.data === YT.PlayerState.PAUSED) sendSync({ action: 'pause', time: time });
   }
 
   setInterval(() => {
