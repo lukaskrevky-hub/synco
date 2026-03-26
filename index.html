@@ -36,14 +36,22 @@
   iframe { width: 100%; height: 100%; border: none; }
 
   /* Playlist na pravé straně */
-  .playlist-panel { width: 320px; background: #161b20; border-left: 1px solid #242c34; display: flex; flex-direction: column; }
+  .playlist-panel { width: 340px; background: #161b20; border-left: 1px solid #242c34; display: flex; flex-direction: column; }
   .playlist-header { padding: 15px; border-bottom: 1px solid #242c34; font-weight: bold; color: #7ba4f2; display: flex; justify-content: space-between; align-items: center;}
   .playlist-items { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-  .playlist-item { background: #080a0c; border: 1px solid #242c34; padding: 12px; border-radius: 6px; cursor: pointer; word-break: break-all; font-size: 12px; transition: 0.2s; position: relative; padding-right: 35px; line-height: 1.4; }
-  .playlist-item:hover { border-color: #5b8dee; }
-  .playlist-item.active { border-color: #4ade80; color: #4ade80; }
-  .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #f87171; cursor: pointer; font-weight: bold; font-size: 16px; background: none; border: none; padding: 0; }
-  .btn-remove:hover { color: #ff9999; }
+  
+  /* Nový vzhled položky ve frontě */
+  .playlist-item { background: #080a0c; border: 1px solid #242c34; padding: 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; position: relative; display: flex; gap: 10px; align-items: center; padding-right: 35px; }
+  .playlist-item:hover { border-color: #5b8dee; background: #0f1215; }
+  .playlist-item.active { border-color: #4ade80; background: #0d2318; }
+  
+  .playlist-thumb { width: 80px; height: 45px; background: #1e252c; border-radius: 4px; background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #7d8c99; }
+  .playlist-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .playlist-title { font-size: 13px; font-weight: bold; color: #dde3ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .playlist-url { font-size: 11px; color: #7d8c99; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  
+  .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #f87171; cursor: pointer; font-weight: bold; font-size: 16px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; }
+  .btn-remove:hover { background: #230d0d; }
 
   /* Úvodní obrazovka */
   #start-overlay { position: absolute; inset: 0; background: #0f1215; z-index: 1000; display: flex; align-items: center; justify-content: center; }
@@ -98,7 +106,6 @@
 </div>
 
 <script>
-  // --- ZÁKLADNÍ NASTAVENÍ MÍSTNOSTI A PAMĚTI ---
   const params = new URLSearchParams(window.location.search);
   let roomName = params.get('room');
   if (!roomName) {
@@ -110,20 +117,25 @@
   document.getElementById('invite-link').value = window.location.href;
 
   const storageKey = 'synco-data-' + roomName;
-  let playlist = [];
+  let playlist = []; 
+  // Struktura playlistu: [{ url: "...", title: "...", thumb: "..." }]
 
-  // Načtení z paměti prohlížeče
   function loadLocalData() {
     const data = localStorage.getItem(storageKey);
     if (data) {
       const parsed = JSON.parse(data);
-      if (parsed.playlist) playlist = parsed.playlist;
+      if (parsed.playlist) {
+        // Zpětná kompatibilita pro staré textové odkazy
+        playlist = parsed.playlist.map(item => {
+          if (typeof item === 'string') return { url: item, title: 'Uložené video', thumb: '' };
+          return item;
+        });
+      }
       if (parsed.url) document.getElementById('url-input').value = parsed.url;
     }
     renderPlaylist();
   }
 
-  // Uložení do paměti prohlížeče
   function saveLocalData() {
     localStorage.setItem(storageKey, JSON.stringify({
       url: document.getElementById('url-input').value.trim(),
@@ -131,23 +143,36 @@
     }));
   }
 
-  // --- STAV A PROMĚNNÉ ---
+  // Funkce pro získání názvu a náhledu z odkazu
+  async function fetchMetadata(url) {
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    
+    if (ytMatch) {
+      const id = ytMatch[1];
+      const thumb = `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+      let title = "YouTube Video";
+      
+      try {
+        // Skvělý veřejný nástroj na zjištění názvu YouTube videa zdarma a bez klíče
+        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (data.title) title = data.title;
+      } catch(e) { console.error("Nelze načíst název YT", e); }
+      
+      return { url, title, thumb };
+    } else {
+      // Je to Kick stream nebo jiný formát
+      return { url, title: "Streamované vysílání", thumb: "" }; 
+    }
+  }
+
   let peer = null, conn = null, isSyncing = false, syncTimeout = null;
   let currentMode = 'none', ytPlayer = null, ytReady = false, ytLastTime = 0;
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
 
-  const peerConfig = {
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' }
-      ]
-    }
-  };
+  const peerConfig = { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } };
 
-  // --- YOUTUBE API ---
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -160,12 +185,10 @@
     });
   };
 
-  // --- PŘIPOJOVACÍ LOGIKA ---
   function startApp() {
     document.getElementById('start-overlay').style.display = 'none';
     document.getElementById('conn-status').innerText = 'Vytvářím místnost...';
     
-    // Načteme historii videí
     loadLocalData();
 
     const hostId = 'synco-room-' + roomName;
@@ -173,14 +196,12 @@
 
     peer.on('open', (id) => {
       document.getElementById('conn-status').innerText = 'Čekám na parťáka...';
-      // Jsem první, pustím si uložené video (pokud nějaké je)
       if (document.getElementById('url-input').value.trim()) loadMedia(false);
     });
 
     peer.on('connection', (c) => {
       setupConnection(c);
       
-      // Iniciační balíček pro nově příchozího - pošleme mu stav I CELOU FRONTU
       setTimeout(() => {
         const currentUrl = document.getElementById('url-input').value.trim();
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
@@ -221,7 +242,6 @@
     setTimeout(() => document.getElementById('copy-btn').innerText = 'Kopírovat', 2000);
   }
 
-  // --- ZPRACOVÁNÍ DAT OD PARŤÁKA ---
   function handleSyncData(data) {
     isSyncing = true;
     clearTimeout(syncTimeout);
@@ -240,7 +260,15 @@
     }
 
     if (data.action === 'load') { document.getElementById('url-input').value = data.url; loadMedia(false); syncTimeout = setTimeout(() => { isSyncing = false; }, 2000); return; }
-    if (data.action === 'queue_add') { addToPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
+    
+    if (data.action === 'queue_add') {
+      if (!playlist.some(i => i.url === data.item.url)) {
+        playlist.push(data.item);
+        saveLocalData(); renderPlaylist();
+      }
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; 
+    }
+    
     if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
 
     if (currentMode === 'yt' && ytReady) {
@@ -258,31 +286,32 @@
     syncTimeout = setTimeout(() => { isSyncing = false; }, 400);
   }
 
-  // --- PLAYLIST LOGIKA ---
-  function handleMediaAction(action) {
+  async function handleMediaAction(action) {
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
     
     if (action === 'play') {
-      addToPlaylist(url, true); // Pro jistotu přidáme i do fronty, když už to pouštíme
+      await addToPlaylist(url, true);
       loadMedia(true);
     } else if (action === 'queue') {
-      addToPlaylist(url, true);
-      document.getElementById('url-input').value = ''; // Vyčistíme políčko po přidání
+      await addToPlaylist(url, true);
+      document.getElementById('url-input').value = '';
     }
   }
 
-  function addToPlaylist(url, broadcast = false) {
-    if (!playlist.includes(url)) {
-      playlist.push(url);
+  async function addToPlaylist(url, broadcast = false) {
+    if (!playlist.some(item => item.url === url)) {
+      // Zavoláme funkci pro zjištění metadat (titulek, obrázek)
+      const newItem = await fetchMetadata(url);
+      playlist.push(newItem);
       saveLocalData();
       renderPlaylist();
-      if (broadcast) sendSync({ action: 'queue_add', url: url });
+      if (broadcast) sendSync({ action: 'queue_add', item: newItem });
     }
   }
 
   function removeFromPlaylist(url, broadcast = false) {
-    playlist = playlist.filter(item => item !== url);
+    playlist = playlist.filter(item => item.url !== url);
     saveLocalData();
     renderPlaylist();
     if (broadcast) sendSync({ action: 'queue_remove', url: url });
@@ -293,28 +322,50 @@
     container.innerHTML = '';
     const currentUrl = document.getElementById('url-input').value.trim();
 
-    playlist.forEach(url => {
+    playlist.forEach(item => {
       const div = document.createElement('div');
-      div.className = 'playlist-item' + (url === currentUrl ? ' active' : '');
+      div.className = 'playlist-item' + (item.url === currentUrl ? ' active' : '');
       
-      // Zkrácení zobrazení odkazu
-      const displayUrl = url.length > 45 ? url.substring(0, 45) + '...' : url;
-      div.innerText = displayUrl;
+      // Obrázek
+      const thumbDiv = document.createElement('div');
+      thumbDiv.className = 'playlist-thumb';
+      if (item.thumb) {
+        thumbDiv.style.backgroundImage = `url('${item.thumb}')`;
+      } else {
+        thumbDiv.innerText = 'STREAM';
+      }
+
+      // Textové informace
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'playlist-info';
       
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'playlist-title';
+      titleSpan.innerText = item.title;
+      
+      const urlSpan = document.createElement('span');
+      urlSpan.className = 'playlist-url';
+      // Zkrácený zobrazený odkaz
+      urlSpan.innerText = item.url.length > 40 ? item.url.substring(0, 40) + '...' : item.url;
+      
+      infoDiv.appendChild(titleSpan);
+      infoDiv.appendChild(urlSpan);
+
       // Tlačítko na smazání
       const removeBtn = document.createElement('button');
       removeBtn.className = 'btn-remove';
       removeBtn.innerHTML = '✖';
       removeBtn.onclick = (e) => {
-        e.stopPropagation(); // Zabrání tomu, aby se video po smazání spustilo
-        removeFromPlaylist(url, true);
+        e.stopPropagation();
+        removeFromPlaylist(item.url, true);
       };
 
+      div.appendChild(thumbDiv);
+      div.appendChild(infoDiv);
       div.appendChild(removeBtn);
 
-      // Kliknutí na položku spustí video
       div.onclick = () => {
-        document.getElementById('url-input').value = url;
+        document.getElementById('url-input').value = item.url;
         loadMedia(true);
       };
 
@@ -322,13 +373,12 @@
     });
   }
 
-  // --- NAČÍTÁNÍ VIDEÍ ---
   function loadMedia(broadcast = false) {
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
 
     saveLocalData();
-    renderPlaylist(); // Aktualizuje zelené podsvícení aktivního videa
+    renderPlaylist(); 
 
     if (broadcast) sendSync({ action: 'load', url: url });
 
@@ -359,7 +409,6 @@
     }
   }
 
-  // --- SLEDOVÁNÍ UDÁLOSTÍ PŘEHRÁVAČŮ ---
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
