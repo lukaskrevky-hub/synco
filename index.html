@@ -87,6 +87,7 @@
   let peer = null;
   let conn = null;
   let isSyncing = false;
+  let syncTimeout = null;
   let currentMode = 'none';
   
   let ytPlayer = null;
@@ -96,7 +97,6 @@
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
 
-  // Konfigurace STUN serverů (Nutné pro spojení různých zařízení!)
   const peerConfig = {
     config: {
       iceServers: [
@@ -128,7 +128,6 @@
     document.getElementById('conn-status').className = 'status';
 
     const hostId = 'synco-room-' + roomName;
-
     peer = new Peer(hostId, peerConfig);
 
     peer.on('open', (id) => {
@@ -138,14 +137,21 @@
     peer.on('connection', (c) => {
       setupConnection(c);
       
+      // Speciální Iniciační blok pro nově příchozího hosta
       setTimeout(() => {
         const currentUrl = document.getElementById('url-input').value.trim();
         if (currentUrl && currentMode !== 'none') {
-          sendSync({ action: 'load', url: currentUrl });
-          const t = currentMode === 'yt' ? ytPlayer.getCurrentTime() : kickVideo.currentTime;
-          sendSync({ action: 'seek', time: t });
+          const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
+          const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
+          
+          sendSync({ 
+            action: 'init', 
+            url: currentUrl, 
+            time: t, 
+            playing: isPlaying 
+          });
         }
-      }, 1000);
+      }, 500);
     });
 
     peer.on('error', (err) => {
@@ -204,10 +210,36 @@
 
   function handleSyncData(data) {
     isSyncing = true;
+    clearTimeout(syncTimeout);
+
+    // Přijetí Iniciačního balíčku
+    if (data.action === 'init') {
+      document.getElementById('url-input').value = data.url;
+      loadMedia(false); 
+      
+      // Dáme videu chvíli na načtení, pak ho posuneme na správný čas
+      setTimeout(() => {
+        if (currentMode === 'yt' && ytReady) {
+          ytPlayer.seekTo(data.time, true);
+          if (data.playing) ytPlayer.playVideo();
+          else ytPlayer.pauseVideo();
+        } else if (currentMode === 'kick') {
+          kickVideo.currentTime = data.time;
+          if (data.playing) kickVideo.play();
+          else kickVideo.pause();
+        }
+      }, 1500);
+
+      // Blokujeme odesílání zpět po dobu 3 sekund
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 3000);
+      return;
+    }
 
     if (data.action === 'load') {
       document.getElementById('url-input').value = data.url;
       loadMedia(false); 
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 2000);
+      return;
     }
     
     if (currentMode === 'yt' && ytReady) {
@@ -222,7 +254,8 @@
       else if (data.action === 'seek') { kickVideo.currentTime = data.time; }
     }
 
-    setTimeout(() => { isSyncing = false; }, 300);
+    // Standardní odblokování pro běžné akce (play/pause/seek)
+    syncTimeout = setTimeout(() => { isSyncing = false; }, 400);
   }
 
   function loadMedia(broadcast = false) {
