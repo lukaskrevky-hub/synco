@@ -19,7 +19,6 @@
     --purple-glow: rgba(147, 51, 234, 0.15);
     
     --teal: #2dd4bf;
-    --teal-hover: #14b8a6;
     --teal-bg: rgba(45, 212, 191, 0.1);
     
     --red: #fb7185;
@@ -51,21 +50,12 @@
   input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-glow); }
   input[readonly] { background: var(--bg-hover); color: var(--purple-hover); cursor: copy; font-weight: 500; }
   
+  /* Zpět na fialová tlačítka pro hlavní akce */
   button { background: var(--purple); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; white-space: nowrap; }
   button:hover { background: var(--purple-hover); transform: translateY(-1px); }
   button:active { transform: translateY(0); }
   button.secondary { background: var(--bg-hover); color: var(--text-main); border: 1px solid var(--border); }
   button.secondary:hover { background: #3f3f46; border-color: #52525b; }
-  
-  button.btn-menthol { 
-    background: var(--teal); 
-    color: #042f2e; 
-    box-shadow: 0 0 12px rgba(45, 212, 191, 0.25);
-  }
-  button.btn-menthol:hover { 
-    background: var(--teal-hover); 
-    box-shadow: 0 0 16px rgba(45, 212, 191, 0.4); 
-  }
   
   .status { font-size: 13px; padding: 8px 14px; border-radius: 8px; background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
@@ -105,17 +95,16 @@
   .playlist-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
   .playlist-header .count { background: var(--purple-glow); color: var(--purple-hover); padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
   
-  .playlist-items { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+  /* Přidáno overscroll-behavior pro uzamčení scrollování uvnitř fronty */
+  .playlist-items { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
   .playlist-items::-webkit-scrollbar { width: 6px; }
   .playlist-items::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
   
-  /* Rozšíření CSS o efekty pro přetahování (Drag & Drop) */
   .playlist-item { background: var(--bg-app); border: 1px solid var(--border); padding: 8px; border-radius: 10px; cursor: grab; transition: all 0.2s ease; position: relative; display: flex; gap: 12px; align-items: center; padding-right: 40px; }
   .playlist-item:active { cursor: grabbing; }
   .playlist-item:hover { border-color: #3f3f46; transform: translateX(2px); }
   .playlist-item.active { border-color: var(--purple); background: var(--purple-glow); }
   
-  /* Třídy pro probíhající přetahování */
   .playlist-item.dragging { opacity: 0.4; border: 1px dashed var(--teal); background: var(--bg-hover); transform: scale(0.98); }
   .playlist-item.drag-over-top { border-top: 2px solid var(--teal); }
   .playlist-item.drag-over-bottom { border-bottom: 2px solid var(--teal); }
@@ -144,7 +133,7 @@
     <div class="icon">🍿</div>
     <h2>Vítej v Synco</h2>
     <p>Připojuješ se do místnosti <span id="room-name-display"></span>. Kliknutím níže aktivuješ kino režim a synchronizaci.</p>
-    <button class="btn-menthol" onclick="startApp()">Vstoupit do kina</button>
+    <button onclick="startApp()">Vstoupit do kina</button>
   </div>
 </div>
 
@@ -166,7 +155,7 @@
   <div class="group" style="flex: 1; min-width: 300px;">
     <input type="text" id="url-input" placeholder="YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
-    <button class="btn-menthol" onclick="handleMediaAction('play')">Pustit</button>
+    <button onclick="handleMediaAction('play')">Pustit</button>
   </div>
   
   <div class="group" style="flex: 0; margin-left: auto;">
@@ -387,7 +376,6 @@
     
     if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
 
-    // Reakce na přeskládání fronty od parťáka
     if (data.action === 'queue_reorder') {
       playlist = data.playlist;
       saveLocalData();
@@ -445,7 +433,6 @@
     if (broadcast) sendSync({ action: 'queue_remove', url: url });
   }
 
-  // Překreslení fronty včetně funkcí pro Drag & Drop
   function renderPlaylist() {
     const container = document.getElementById('playlist-items');
     document.getElementById('playlist-count').innerText = playlist.length;
@@ -455,7 +442,7 @@
     playlist.forEach((item, index) => {
       const div = document.createElement('div');
       div.className = 'playlist-item' + (item.url === currentUrl ? ' active' : '');
-      div.draggable = true; // Aktivace přetahování
+      div.draggable = true; 
       
       const thumbDiv = document.createElement('div');
       thumbDiv.className = 'playlist-thumb';
@@ -485,7 +472,6 @@
       div.appendChild(infoDiv);
       div.appendChild(removeBtn);
 
-      // --- LOGIKA DRAG & DROP ---
       div.addEventListener('dragstart', (e) => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', index);
@@ -538,16 +524,14 @@
           dropIndex--;
         }
 
-        // Přesunutí v poli a uložení
         const [movedItem] = playlist.splice(draggedIdx, 1);
         playlist.splice(dropIndex, 0, movedItem);
 
         saveLocalData();
         renderPlaylist();
-        sendSync({ action: 'queue_reorder', playlist: playlist }); // Poslat přeskládání parťákovi
+        sendSync({ action: 'queue_reorder', playlist: playlist });
       });
 
-      // Spuštění videa kliknutím
       div.onclick = () => { document.getElementById('url-input').value = item.url; loadMedia(true); };
       
       container.appendChild(div);
