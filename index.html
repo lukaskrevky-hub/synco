@@ -1,878 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synco</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<title>Synco - Čistá verze</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-:root {
-  --bg:       #080a0c;
-  --s1:       #0f1215;
-  --s2:       #161b20;
-  --s3:       #1e252c;
-  --border:   #242c34;
-  --border2:  #2e3840;
-  --text:     #dde3ea;
-  --text2:    #7d8c99;
-  --text3:    #3d4d5a;
-  --accent:   #5b8dee;
-  --accent2:  #7ba4f2;
-  --green:    #4ade80;
-  --green-bg: #0d2318;
-  --red:      #f87171;
-  --red-bg:   #230d0d;
-  --yellow:   #fbbf24;
-  --radius:   12px;
-  --radius-sm:7px;
-}
-
-html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; font-size:15px; line-height:1.5; overflow:hidden; }
-
-/* ── HEADER ── */
-header {
-  height: 52px;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  background: var(--s1);
-  border-bottom: 1px solid var(--border);
-  gap: 16px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-}
-
-.logo {
-  display: flex; align-items: center; gap: 9px;
-  font-size: 17px; font-weight: 800; letter-spacing: -0.03em;
-  color: var(--text);
-  user-select: none;
-}
-
-.logo-mark {
-  width: 26px; height: 26px;
-  background: var(--accent);
-  border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.logo-mark svg { width:14px; height:14px; }
-
-.logo span { color: var(--accent2); }
-
-/* URL bar center */
-.url-bar {
-  flex: 1;
-  display: flex;
-  gap: 8px;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.url-bar input {
-  flex: 1;
-  background: var(--s2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 7px 13px;
-  color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  outline: none;
-  transition: border-color .15s;
-  min-width: 0;
-}
-.url-bar input:focus { border-color: var(--accent); }
-.url-bar input::placeholder { color: var(--text3); font-family: 'Syne', sans-serif; font-size: 13px; }
-
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  font-family: 'Syne', sans-serif;
-  font-size: 13px; font-weight: 600;
-  cursor: pointer;
-  transition: all .15s;
-  white-space: nowrap;
-  line-height: 1;
-}
-.btn:disabled { opacity: .35; cursor: not-allowed; }
-.btn svg { flex-shrink:0; }
-
-.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
-
-.btn-ghost { background: transparent; color: var(--text2); border-color: var(--border2); }
-.btn-ghost:hover:not(:disabled) { background: var(--s2); color: var(--text); }
-
-.btn-danger { background: transparent; color: var(--red); border-color: var(--red-bg); }
-.btn-danger:hover:not(:disabled) { background: var(--red-bg); }
-
-.btn-sm { padding: 5px 10px; font-size: 12px; }
-
-/* status */
-.conn-status { display:flex; align-items:center; gap:7px; margin-left:auto; flex-shrink:0; }
-.dot { width:7px; height:7px; border-radius:50%; background:var(--text3); flex-shrink:0; transition:background .3s; }
-.dot.ok { background:var(--green); }
-.dot.connecting { background:var(--yellow); animation:blink 1.1s ease-in-out infinite; }
-.dot.err { background:var(--red); }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-#conn-label { font-size:12px; color:var(--text2); font-family:'JetBrains Mono',monospace; }
-
-/* ── LAYOUT ── */
-.layout {
-  display: flex;
-  height: calc(100vh - 52px);
-}
-
-/* ── MAIN (video + comments) ── */
-.main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: #000;
-}
-
-.player-wrap {
-  flex: 1;
-  position: relative;
-  background: #000;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* HLS video */
-#hls-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: none;
-  background: #000;
-  z-index: 2;
-}
-
-/* YouTube Wrapper - OPRAVENO */
-#yt-wrapper {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: none;
-  background: #000;
-  z-index: 1;
-}
-
-#yt-player-div {
-  width: 100%;
-  height: 100%;
-}
-
-#yt-frame { display: none; }
-
-/* Empty state */
-.empty-state {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  color: var(--text3);
-  pointer-events: none;
-  z-index: 3;
-}
-.empty-state.hidden { display: none; }
-.empty-big { font-size: 42px; font-weight: 800; letter-spacing: -0.03em; color: var(--s3); }
-.empty-sub { font-size: 13px; color: var(--text3); }
-
-/* Sync toast */
-.sync-toast {
-  position: absolute;
-  top: 14px; left: 50%;
-  transform: translateX(-50%) translateY(-50px);
-  background: rgba(10,13,17,.9);
-  border: 1px solid var(--border2);
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 12px; color: var(--accent2);
-  font-family: 'JetBrains Mono', monospace;
-  transition: transform .22s cubic-bezier(.34,1.56,.64,1), opacity .22s;
-  opacity: 0; pointer-events: none;
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
-  z-index: 20;
-}
-.sync-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-
-/* YT notice */
-.yt-notice {
-  display: none;
-  position: absolute;
-  bottom: 10px; left: 50%;
-  transform: translateX(-50%);
-  background: rgba(10,13,17,.85);
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  padding: 6px 13px;
-  font-size: 11px;
-  color: var(--text2);
-  pointer-events: none;
-  z-index: 5;
-}
-
-.comments-panel { height: 220px; flex-shrink: 0; background: var(--s1); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-.comments-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.comments-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); }
-#comments-count { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
-.api-key-wrap { margin-left: auto; display: flex; align-items: center; gap: 7px; }
-.api-key-wrap input { background: var(--s2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 11px; outline: none; width: 220px; transition: border-color .15s; }
-.api-key-wrap input:focus { border-color: var(--accent); }
-.key-saved-badge { font-size: 10px; color: var(--green); font-family: 'JetBrains Mono', monospace; opacity: 0; transition: opacity .3s; white-space: nowrap; }
-.key-saved-badge.show { opacity: 1; }
-.comments-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 16px; display: flex; flex-direction: column; gap: 10px; }
-.comments-body::-webkit-scrollbar { width:3px; }
-.comments-body::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
-.comment-item { display: flex; gap: 10px; align-items: flex-start; opacity: 0; animation: fadeIn .2s forwards; }
-@keyframes fadeIn { to { opacity:1; } }
-.comment-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--s3); }
-.comment-right { flex:1; min-width:0; }
-.comment-author { font-size: 12px; font-weight: 700; color: var(--accent2); display: inline; }
-.comment-date { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-left: 8px; }
-.comment-text { font-size: 13px; color: var(--text2); line-height: 1.5; word-break: break-word; margin-top: 2px; }
-.comments-empty { text-align: center; color: var(--text3); font-size: 13px; padding: 20px 0; }
-.comments-loading { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 13px; padding: 12px 0; }
-.spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-/* Side panel styles */
-.side { width: 300px; flex-shrink: 0; background: var(--s1); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-.side-scroll { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 18px; }
-.section { display:flex; flex-direction:column; gap:9px; }
-.section-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); }
-.divider { height:1px; background:var(--border); }
-.code-block { background: var(--s2); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; display: flex; flex-direction: column; gap: 9px; }
-.code-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: .07em; color: var(--accent2); text-align: center; background: rgba(91,141,238,.08); border: 1px solid rgba(91,141,238,.15); border-radius: var(--radius-sm); padding: 10px; cursor: pointer; user-select: all; transition: background .15s; }
-.code-val:hover { background: rgba(91,141,238,.14); }
-.code-hint { font-size: 11px; color: var(--text3); text-align:center; }
-.peer-connected { display: none; background: var(--green-bg); border: 1px solid rgba(74,222,128,.15); border-radius: var(--radius); padding: 11px 13px; gap: 9px; align-items: center; }
-.peer-connected.show { display:flex; }
-.peer-name { font-size:12px; font-weight:600; color:var(--green); font-family:'JetBrains Mono',monospace; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.peer-sub { font-size:11px; color:var(--text3); }
-.source-pills { display:flex; gap:6px; flex-wrap:wrap; }
-.pill { display: inline-flex; align-items:center; gap:5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid var(--border2); color: var(--text3); cursor: default; }
-.pill.active { border-color: var(--accent); color: var(--accent2); background: rgba(91,141,238,.08); }
-.pill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
-.log-wrap { background: var(--s2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.log-head { display:flex; align-items:center; justify-content:space-between; padding: 7px 11px; border-bottom: 1px solid var(--border); font-size:10px; color:var(--text3); font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
-.log-clear { background:none; border:none; color:var(--text3); cursor:pointer; font-size:10px; font-family:inherit; }
-.log-clear:hover { color:var(--text2); }
-#log { padding: 9px 11px; font-family: 'JetBrains Mono', monospace; font-size: 10px; max-height: 160px; overflow-y: auto; display: flex; flex-direction:column; gap:3px; }
-#log::-webkit-scrollbar { width:2px; }
-#log::-webkit-scrollbar-thumb { background:var(--border2); }
-.le { display:flex; gap:7px; animation:fadeIn .18s forwards; opacity:0; }
-.lt { color:var(--text3); flex-shrink:0; }
-.lm { color:var(--text2); }
-.lm.ok   { color:var(--green); }
-.lm.err  { color:var(--red); }
-.lm.sync { color:var(--accent2); }
-.irow { display:flex; gap:7px; }
-input[type=text] { flex:1; background:var(--s2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 11px; color:var(--text); font-family:'Syne',sans-serif; font-size:13px; outline:none; transition:border-color .15s; min-width:0; }
-input[type=text]:focus { border-color:var(--accent); }
-.row { display:flex; gap:7px; }
-.row .btn { flex:1; justify-content:center; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1215; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  
+  /* Horní ovládací panel */
+  .toolbar { background: #161b20; padding: 15px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #242c34; z-index: 10; }
+  .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 300px; }
+  input { background: #080a0c; border: 1px solid #242c34; color: #fff; padding: 8px 12px; border-radius: 6px; flex: 1; outline: none; }
+  input:focus { border-color: #5b8dee; }
+  button { background: #5b8dee; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  button:hover { background: #7ba4f2; }
+  .status { font-size: 14px; padding: 4px 8px; border-radius: 4px; background: #3d4d5a; }
+  .status.connected { background: #4ade80; color: #0d2318; }
+  
+  /* Prostor pro videa */
+  .video-container { flex: 1; position: relative; background: #000; }
+  
+  /* Triky se z-indexem místo display:none, aby se YT nezasekl */
+  .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+  .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
+  
+  video { width: 100%; height: 100%; outline: none; }
+  iframe { width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="logo-mark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <polygon points="10 8 16 12 10 16 10 8" fill="#fff" stroke="none"/>
-      </svg>
-    </div>
-    Syn<span>co</span>
+<div class="toolbar">
+  <div class="group">
+    <input type="text" id="url-input" placeholder="Vlož odkaz na YouTube nebo Kick (.m3u8)...">
+    <button onclick="loadMedia(true)">Načíst video</button>
   </div>
-
-  <div class="url-bar">
-    <input type="text" id="url-input" placeholder="Paste a YouTube URL or Kick .m3u8 stream URL…" />
-    <button class="btn btn-primary" onclick="loadURL()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      Load
-    </button>
-    <button class="btn btn-ghost" id="share-btn" onclick="shareURL()" disabled>Share</button>
-  </div>
-
-  <div class="conn-status">
-    <div class="dot" id="dot"></div>
-    <span id="conn-label">not connected</span>
-  </div>
-</header>
-
-<div class="layout">
-
-  <div class="main">
-    <div class="player-wrap">
-      <video id="hls-video" controls></video>
-      <div id="yt-wrapper">
-        <div id="yt-player-div"></div>
-      </div>
-      <iframe id="yt-frame" style="display:none"></iframe>
-
-      <div class="empty-state" id="empty-state">
-        <div class="empty-big">SYNCO</div>
-        <div class="empty-sub">Paste a YouTube or Kick .m3u8 URL above to start watching together</div>
-      </div>
-
-      <div class="sync-toast" id="sync-toast"></div>
-      <div class="yt-notice" id="yt-notice">YouTube sync uses the IFrame API — play/pause/seek all sync</div>
-    </div>
-
-    <div class="comments-panel" id="comments-panel">
-      <div class="comments-header">
-        <span class="comments-title">Comments</span>
-        <span id="comments-count"></span>
-        <div class="api-key-wrap" id="api-key-wrap">
-          <input type="password" id="yt-api-key" placeholder="YouTube Data API key" />
-          <span class="key-saved-badge" id="key-saved-badge">✓ saved</span>
-          <button class="btn btn-ghost btn-sm" onclick="fetchAndShareComments()">Load</button>
-        </div>
-      </div>
-      <div class="comments-body" id="comments-body">
-        <div class="comments-empty" id="comments-empty">Load a YouTube video and enter your API key to see comments</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="side">
-    <div class="side-scroll">
-      <div class="section">
-        <div class="section-label">Now Playing</div>
-        <div class="source-pills">
-          <div class="pill" id="pill-none"><span class="pill-dot"></span>Nothing loaded</div>
-          <div class="pill" id="pill-yt" style="display:none"><span class="pill-dot"></span>YouTube</div>
-          <div class="pill" id="pill-kick" style="display:none"><span class="pill-dot"></span>Kick HLS</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="section">
-        <div class="section-label">Room</div>
-        <div class="code-block">
-          <div class="code-val" id="my-id" onclick="copyID()" title="Click to copy">…</div>
-          <div class="code-hint">Your room code — share with your friend</div>
-          <button class="btn btn-ghost" id="copy-btn" onclick="copyID()" style="justify-content:center;font-size:12px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            Copy code
-          </button>
-        </div>
-
-        <div class="irow">
-          <input type="text" id="peer-input" placeholder="Friend's room code" />
-          <button class="btn btn-primary btn-sm" onclick="joinRoom()">Join</button>
-        </div>
-
-        <div class="peer-connected" id="peer-card">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          <div>
-            <div class="peer-name" id="peer-name">—</div>
-            <div class="peer-sub">connected • p2p</div>
-          </div>
-          <button class="btn btn-danger btn-sm" onclick="disconnect()" style="margin-left:auto">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="section">
-        <div class="section-label">Sync</div>
-        <button class="btn btn-ghost" style="justify-content:center" onclick="hardSync()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-          Force sync to my position
-        </button>
-        <div style="font-size:11px;color:var(--text3);line-height:1.6">
-          Anyone can pause, seek, or play — all changes sync instantly to the other person.
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="section">
-        <div class="log-wrap">
-          <div class="log-head">
-            Sync Log
-            <button class="log-clear" onclick="document.getElementById('log').innerHTML=''">clear</button>
-          </div>
-          <div id="log"></div>
-        </div>
-      </div>
-    </div>
+  
+  <div class="group">
+    <span style="font-size: 13px; color: #7d8c99;">Moje ID: <strong id="my-id" style="color:#fff; user-select:all;">načítám...</strong></span>
+    <input type="text" id="peer-input" placeholder="Vlož ID kamaráda...">
+    <button onclick="connectToPeer()">Připojit</button>
+    <div id="conn-status" class="status">Odpojeno</div>
   </div>
 </div>
 
-<script src="https://www.youtube.com/iframe_api"></script>
+<div class="video-container">
+  <div id="layer-yt" class="player-layer">
+    <div id="yt-player"></div>
+  </div>
+  
+  <div id="layer-kick" class="player-layer">
+    <video id="kick-player" controls></video>
+  </div>
+</div>
+
 <script>
-let peer = null, conn = null, hls = null;
-let ytPlayer = null;
-let ytPlayerReady = false;
-let ytPendingId = null;
-let currentMode = null;
-let currentYtId = null;
-let cachedComments = null;
-let ignoreUntil = 0;
-let ytSeekDebounce = null;
-let ytLastState = -1;
-let ytLastSentSeek = -1;
-let hlsSeekDebounce = null;
-let hlsLastSentSeek = -1;
-const SEEK_THRESH = 1.2;
-const IGNORE_MS  = 300;
+  // --- STAV A PROMĚNNÉ ---
+  let peer = null;
+  let conn = null;
+  let isSyncing = false; // Pojistka proti zacyklení událostí
+  let currentMode = 'none'; // 'yt' nebo 'kick'
+  
+  // YouTube proměnné
+  let ytPlayer = null;
+  let ytReady = false;
+  let ytLastTime = 0;
+  
+  // Kick proměnné
+  const kickVideo = document.getElementById('kick-player');
+  let hls = null;
 
-const hlsVideo   = document.getElementById('hls-video');
-const ytWrapper  = document.getElementById('yt-wrapper'); /* OPRAVENO */
-const emptyState = document.getElementById('empty-state');
-const syncToast  = document.getElementById('sync-toast');
-const urlInput   = document.getElementById('url-input');
-const shareBtn   = document.getElementById('share-btn');
-const myIdEl     = document.getElementById('my-id');
-const peerCard   = document.getElementById('peer-card');
-const peerNameEl = document.getElementById('peer-name');
-const ytNotice   = document.getElementById('yt-notice');
+  // --- INICIALIZACE YOUTUBE API ---
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-function isIgnoring() { return Date.now() < ignoreUntil; }
-function suppress(ms) { ignoreUntil = Date.now() + (ms || IGNORE_MS); }
-
-const savedKey = localStorage.getItem('synco_yt_api_key');
-if (savedKey) {
-  document.getElementById('yt-api-key').value = savedKey;
-  document.getElementById('key-saved-badge').classList.add('show');
-}
-
-document.getElementById('yt-api-key').addEventListener('input', () => {
-  const key = document.getElementById('yt-api-key').value.trim();
-  if (key) {
-    localStorage.setItem('synco_yt_api_key', key);
-    document.getElementById('key-saved-badge').classList.add('show');
-  } else {
-    localStorage.removeItem('synco_yt_api_key');
-    document.getElementById('key-saved-badge').classList.remove('show');
-  }
-});
-
-window.onYouTubeIframeAPIReady = function() {
-  log('YT IFrame API ready', 'ok');
-  ytPlayer = new YT.Player('yt-player-div', {
-    width: '100%',
-    height: '100%',
-    playerVars: { autoplay: 1, controls: 1, rel: 0, modestbranding: 1, enablejsapi: 1, origin: location.origin || '*' },
-    events: { onReady: onYTReady, onStateChange: onYTStateChange }
-  });
-};
-
-function onYTReady() {
-  ytPlayerReady = true;
-  const iframe = ytPlayer.getIframe();
-  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;';
-  log('YouTube player ready', 'ok');
-  if (ytPendingId) {
-    ytPlayer.loadVideoById(ytPendingId);
-    ytPendingId = null;
-  }
-}
-
-function onYTStateChange(e) {
-  if (isIgnoring()) return;
-  const state = e.data;
-  const t = ytPlayer.getCurrentTime();
-  if (state === YT.PlayerState.PLAYING && ytLastState !== YT.PlayerState.PLAYING) {
-    send('yt_play', { time: t });
-    log('▶ YT play sent @ ' + fmt(t));
-  } else if (state === YT.PlayerState.PAUSED && ytLastState !== YT.PlayerState.PAUSED) {
-    send('yt_pause', { time: t });
-    log('⏸ YT pause sent @ ' + fmt(t));
-  }
-  ytLastState = state;
-}
-
-let ytLastPollTime = 0;
-setInterval(() => {
-  if (!ytPlayerReady || !ytPlayer || currentMode !== 'yt') return;
-  try {
-    const state = ytPlayer.getPlayerState();
-    if (state !== YT.PlayerState.PLAYING) return;
-    const t = ytPlayer.getCurrentTime();
-    if (Math.abs(t - ytLastPollTime) > 3 && ytLastPollTime > 0 && !isIgnoring()) {
-      clearTimeout(ytSeekDebounce);
-      ytSeekDebounce = setTimeout(() => {
-        const now = ytPlayer.getCurrentTime();
-        if (Math.abs(now - ytLastSentSeek) > 1) {
-          ytLastSentSeek = now;
-          send('yt_seek', { time: now });
-          log('⏩ YT seek sent → ' + fmt(now));
-        }
-      }, 200);
-    }
-    ytLastPollTime = t;
-    if (conn?.open) send('yt_heartbeat', { time: t });
-  } catch(e) {}
-}, 1000);
-
-function detectURL(url) {
-  url = url.trim();
-  const ytMatch = url.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-  if (ytMatch) return { type: 'yt', id: ytMatch[1] };
-  if (url.startsWith('http')) return { type: 'kick', url };
-  return null;
-}
-
-function loadURL(broadcast = true) {
-  const raw = urlInput.value.trim();
-  if (!raw) return;
-  const info = detectURL(raw);
-  if (!info) { log('Unrecognized URL', 'err'); return; }
-  emptyState.classList.add('hidden');
-  shareBtn.disabled = false;
-  if (info.type === 'yt') loadYouTube(info.id, broadcast);
-  else loadKick(info.url, broadcast);
-}
-
-function loadYouTube(videoId, broadcast = true) {
-  currentMode = 'yt';
-  currentYtId = videoId;
-  cachedComments = null;
-
-  hlsVideo.style.display = 'none';
-  if (hls) { hls.destroy(); hls = null; }
-
-  ytWrapper.style.display = 'block'; /* OPRAVENO */
-  setPills('yt');
-  showCommentsPanel(true);
-  ytNotice.style.display = 'block';
-  ytLastState = -1;
-  ytLastPollTime = 0;
-
-  emptyState.classList.add('hidden');
-  shareBtn.disabled = false;
-
-  if (ytPlayerReady) {
-    ytPlayer.loadVideoById(videoId);
-    log('YouTube loaded: ' + videoId, 'ok');
-  } else {
-    ytPendingId = videoId;
-    log('YouTube queued (player initialising…)');
-  }
-
-  if (broadcast) {
-    send('load', { mode: 'yt', id: videoId });
-    log('URL shared with friend', 'ok');
-  }
-  resetComments();
-}
-
-function loadKick(url, broadcast = true) {
-  currentMode = 'kick';
-  currentYtId = null;
-
-  ytWrapper.style.display = 'none'; /* OPRAVENO */
-  if (ytPlayerReady) { try { ytPlayer.stopVideo(); } catch(e) {} }
-  ytNotice.style.display = 'none';
-
-  hlsVideo.style.display = 'block';
-
-  setPills('kick');
-  showCommentsPanel(false);
-
-  emptyState.classList.add('hidden');
-  shareBtn.disabled = false;
-
-  if (hls) { hls.destroy(); hls = null; }
-
-  if (Hls.isSupported()) {
-    hls = new Hls({ enableWorker: true, backBufferLength: 90, xhrSetup: (xhr) => { xhr.withCredentials = false; } });
-    hls.loadSource(url);
-    hls.attachMedia(hlsVideo);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      log('HLS manifest ✓', 'ok');
-      hlsVideo.play().catch(() => {});
-    });
-  } else if (hlsVideo.canPlayType('application/vnd.apple.mpegurl')) {
-    hlsVideo.src = url;
-    hlsVideo.play().catch(() => {});
-  }
-
-  log('Kick stream loading…', 'ok');
-  if (broadcast) { send('load', { mode: 'kick', url }); log('URL shared with friend', 'ok'); }
-}
-
-hlsVideo.addEventListener('play', () => { if (isIgnoring()) return; send('play', { time: hlsVideo.currentTime }); log('▶ play sent @ ' + fmt(hlsVideo.currentTime)); });
-hlsVideo.addEventListener('pause', () => { if (isIgnoring()) return; send('pause', { time: hlsVideo.currentTime }); log('⏸ pause sent @ ' + fmt(hlsVideo.currentTime)); });
-hlsVideo.addEventListener('seeked', () => {
-  if (isIgnoring()) return;
-  clearTimeout(hlsSeekDebounce);
-  hlsSeekDebounce = setTimeout(() => {
-    if (Math.abs(hlsVideo.currentTime - hlsLastSentSeek) < 0.3) return;
-    hlsLastSentSeek = hlsVideo.currentTime;
-    send('seek', { time: hlsVideo.currentTime });
-    log('⏩ seek sent → ' + fmt(hlsVideo.currentTime));
-  }, 150);
-});
-
-setInterval(() => {
-  if (currentMode !== 'kick' || !conn?.open || hlsVideo.paused) return;
-  send('heartbeat', { time: hlsVideo.currentTime });
-}, 2000);
-
-function initPeer() {
-  peer = new Peer(undefined, { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } });
-  peer.on('open', id => { myIdEl.textContent = id; log('Ready — ' + id, 'ok'); setStatus('', 'ready'); });
-  peer.on('connection', c => { setupConn(c); log('Friend connecting (' + c.peer + ')…'); });
-  peer.on('error', e => { log('Peer error: ' + e.type, 'err'); setStatus('err', 'error'); });
-}
-
-function setupConn(c) {
-  conn = c;
-  setStatus('connecting', 'connecting…');
-  conn.on('open', () => {
-    showConnected(conn.peer);
-    setStatus('ok', 'connected');
-    log('P2P open ✓', 'ok');
-    if (currentMode === 'yt' && currentYtId) setTimeout(() => send('load', { mode: 'yt', id: currentYtId }), 300);
-    else if (currentMode === 'kick') setTimeout(() => send('load', { mode: 'kick', url: urlInput.value.trim() }), 300);
-    if (cachedComments) setTimeout(() => { if (conn && conn.open) send('comments_data', cachedComments); }, 800);
-  });
-  conn.on('data', onData);
-  conn.on('close', () => { conn = null; peerCard.classList.remove('show'); setStatus('', 'disconnected'); log('Peer disconnected', 'err'); });
-  conn.on('error', e => log('Conn error: ' + e, 'err'));
-}
-
-function joinRoom() {
-  const id = document.getElementById('peer-input').value.trim();
-  if (!id) return;
-  if (conn) conn.close();
-  log('Joining ' + id + '…');
-  setupConn(peer.connect(id, { reliable: true }));
-}
-
-function disconnect() { if (conn) conn.close(); }
-function showConnected(id) { peerCard.classList.add('show'); peerNameEl.textContent = id; }
-
-function send(type, payload = {}) { if (!conn?.open) return; conn.send({ type, ...payload }); }
-
-function onData(msg) {
-  const { type } = msg;
-  if (type === 'load') {
-    if (msg.mode === 'yt') { urlInput.value = 'https://youtube.com/watch?v=' + msg.id; loadYouTube(msg.id, false); showToast('Friend loaded YouTube'); }
-    else { urlInput.value = msg.url; loadKick(msg.url, false); showToast('Friend loaded VOD'); }
-    return;
-  }
-  if (type === 'comments_data') {
-    renderComments(msg.items, msg.totalResults);
-    showToast('Comments synced from friend');
-    log('Comments synced (' + msg.items.length + ')', 'sync');
-    return;
-  }
-  if (type === 'play') { suppress(); if (Math.abs(hlsVideo.currentTime - msg.time) > SEEK_THRESH) hlsVideo.currentTime = msg.time; hlsVideo.play().catch(()=>{}); log('▶ play from friend @ ' + fmt(msg.time), 'sync'); showToast('▶ play'); }
-  else if (type === 'pause') { suppress(); hlsVideo.currentTime = msg.time; hlsVideo.pause(); log('⏸ pause from friend @ ' + fmt(msg.time), 'sync'); showToast('⏸ paused'); }
-  else if (type === 'seek') { suppress(); hlsVideo.currentTime = msg.time; log('⏩ seek from friend → ' + fmt(msg.time), 'sync'); showToast('⏩ ' + fmt(msg.time)); }
-  else if (type === 'rate') { suppress(); hlsVideo.playbackRate = msg.rate; log('⚡ rate → ' + msg.rate + 'x', 'sync'); }
-  else if (type === 'heartbeat') {
-    const drift = Math.abs(hlsVideo.currentTime - msg.time);
-    if (!hlsVideo.paused && drift > SEEK_THRESH * 1.5) { suppress(); hlsVideo.currentTime = msg.time; log('HLS drift fix (' + drift.toFixed(1) + 's)', 'sync'); }
-  }
-  else if (type === 'yt_play') {
-    if (!ytPlayerReady) return;
-    suppress(400);
-    ytLastState = YT.PlayerState.PLAYING;
-    ytPlayer.seekTo(msg.time, true);
-    setTimeout(() => ytPlayer.playVideo(), 120);
-    log('▶ YT play from friend @ ' + fmt(msg.time), 'sync'); showToast('▶ play');
-  }
-  else if (type === 'yt_pause') {
-    if (!ytPlayerReady) return;
-    suppress(400);
-    ytLastState = YT.PlayerState.PAUSED;
-    ytPlayer.seekTo(msg.time, true);
-    setTimeout(() => ytPlayer.pauseVideo(), 120);
-    log('⏸ YT pause from friend @ ' + fmt(msg.time), 'sync'); showToast('⏸ paused');
-  }
-  else if (type === 'yt_seek') {
-    if (!ytPlayerReady) return;
-    suppress(400);
-    ytLastSentSeek = msg.time;
-    ytLastPollTime = msg.time;
-    ytPlayer.seekTo(msg.time, true);
-    log('⏩ YT seek from friend → ' + fmt(msg.time), 'sync'); showToast('⏩ ' + fmt(msg.time));
-  }
-  else if (type === 'yt_heartbeat') {
-    if (!ytPlayerReady || isIgnoring()) return;
-    try {
-      const myTime = ytPlayer.getCurrentTime();
-      const drift = Math.abs(myTime - msg.time);
-      if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING && drift > SEEK_THRESH * 1.5) {
-        suppress(400);
-        ytPlayer.seekTo(msg.time, true);
-        log('YT drift fix (' + drift.toFixed(1) + 's)', 'sync');
+  window.onYouTubeIframeAPIReady = function() {
+    ytPlayer = new YT.Player('yt-player', {
+      playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+      events: {
+        'onReady': () => { ytReady = true; console.log("YT Player připraven"); },
+        'onStateChange': onYtStateChange
       }
-    } catch(e) {}
-  }
-}
+    });
+  };
 
-function hardSync() {
-  if (!conn?.open) { log('Not connected', 'err'); return; }
-  if (currentMode === 'kick') {
-    const t = hlsVideo.currentTime;
-    hlsVideo.paused ? send('pause', { time: t }) : (send('seek', {time:t}), send('play', {time:t}));
-  } else if (currentMode === 'yt' && ytPlayerReady) {
-    const t = ytPlayer.getCurrentTime();
-    const state = ytPlayer.getPlayerState();
-    if (state === YT.PlayerState.PLAYING) { send('yt_seek', {time:t}); send('yt_play', {time:t}); }
-    else { send('yt_pause', {time:t}); }
-  }
-  log('Force sync pushed', 'ok');
-  showToast('Sync pushed');
-}
-
-function shareURL() {
-  if (!conn?.open) { log('Not connected', 'err'); return; }
-  if (currentMode === 'yt') send('load', { mode: 'yt', id: currentYtId });
-  else if (currentMode === 'kick') send('load', { mode: 'kick', url: urlInput.value.trim() });
-  log('URL sent to friend', 'ok'); showToast('Shared!');
-}
-
-function showCommentsPanel(show) { document.getElementById('comments-panel').style.display = show ? '' : 'none'; }
-function resetComments() {
-  document.getElementById('comments-body').innerHTML = '<div class="comments-empty">Enter your YouTube API key above and click Load to see comments</div>';
-  document.getElementById('comments-count').textContent = '';
-}
-
-async function fetchAndShareComments() {
-  const apiKey = document.getElementById('yt-api-key').value.trim();
-  if (!apiKey) { log('Enter a YouTube API key first', 'err'); return; }
-  if (!currentYtId) { log('No YouTube video loaded', 'err'); return; }
-  const items = await fetchComments(apiKey, currentYtId);
-  if (items && conn?.open) {
-    send('comments_data', { items: items.map(i => i.snippet.topLevelComment.snippet), totalResults: items.length });
-    log('Comments sent to friend', 'ok');
-  }
-}
-
-async function fetchComments(apiKey, videoId) {
-  const body = document.getElementById('comments-body');
-  body.innerHTML = '<div class="comments-loading"><div class="spinner"></div> Loading comments…</div>';
-  try {
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=50&order=relevance&key=${apiKey}`);
-    const data = await res.json();
-    if (data.error) { body.innerHTML = `<div class="comments-empty">API error: ${data.error.message}</div>`; log('Comments error: ' + data.error.message, 'err'); return null; }
-    if (!data.items?.length) { body.innerHTML = '<div class="comments-empty">No comments found</div>'; return null; }
-    const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
-    renderComments(snippets, data.pageInfo?.totalResults);
-    log('Loaded ' + data.items.length + ' comments', 'ok');
-    return data.items;
-  } catch(e) {
-    body.innerHTML = '<div class="comments-empty">Failed to fetch. Check your API key and network.</div>';
-    log('Comments fetch failed', 'err');
-    return null;
-  }
-}
-
-function renderComments(snippets, totalResults) {
-  const body = document.getElementById('comments-body');
-  document.getElementById('comments-count').textContent = totalResults ? Intl.NumberFormat().format(totalResults) + ' comments' : '';
-  body.innerHTML = '';
-  for (const c of snippets) {
-    const div = document.createElement('div');
-    div.className = 'comment-item';
-    div.innerHTML = `<img class="comment-avatar" src="${c.authorProfileImageUrl || ''}" alt="" onerror="this.style.display='none'"><div class="comment-right"><span class="comment-author">${escHtml(c.authorDisplayName || '')}</span><span class="comment-date">${relTime(c.publishedAt)}</span><div class="comment-text">${escHtml(c.textDisplay || '').replace(/\n/g,'<br>')}</div></div>`;
-    body.appendChild(div);
-  }
-  cachedComments = { items: snippets, totalResults: totalResults || 0 };
-}
-
-function setPills(mode) {
-  document.getElementById('pill-none').style.display = mode ? 'none' : '';
-  document.getElementById('pill-yt').style.display   = mode === 'yt'   ? '' : 'none';
-  document.getElementById('pill-kick').style.display = mode === 'kick' ? '' : 'none';
-  if (mode) document.getElementById('pill-' + mode).classList.add('active');
-}
-
-function copyID() {
-  const id = myIdEl.textContent;
-  if (!id || id === '…') return;
-  navigator.clipboard.writeText(id).then(() => {
-    const btn = document.getElementById('copy-btn');
-    btn.textContent = '✓ Copied!';
-    setTimeout(() => { btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy code`; }, 1800);
-    showToast('Copied!');
+  // --- LOGIKA PŘIPOJENÍ (PEERJS) ---
+  peer = new Peer();
+  peer.on('open', (id) => {
+    document.getElementById('my-id').innerText = id;
   });
-}
 
-function setStatus(cls, txt) {
-  document.getElementById('dot').className = 'dot ' + cls;
-  document.getElementById('conn-label').textContent = txt;
-}
+  // Když se někdo připojí ke mně
+  peer.on('connection', (connection) => {
+    setupConnection(connection);
+  });
 
-let toastTimer;
-function showToast(msg) {
-  syncToast.textContent = msg; syncToast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => syncToast.classList.remove('show'), 1900);
-}
+  // Když se já připojuji ke kamarádovi
+  function connectToPeer() {
+    const peerId = document.getElementById('peer-input').value.trim();
+    if (!peerId) return alert("Zadej ID kamaráda");
+    const connection = peer.connect(peerId, { reliable: true });
+    setupConnection(connection);
+  }
 
-function fmt(s) {
-  if (!s || isNaN(s)) return '0:00';
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = Math.floor(s%60);
-  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}` : `${m}:${String(ss).padStart(2,'0')}`;
-}
+  function setupConnection(connection) {
+    if (conn) conn.close();
+    conn = connection;
+    
+    conn.on('open', () => {
+      document.getElementById('conn-status').innerText = 'Připojeno';
+      document.getElementById('conn-status').classList.add('connected');
+    });
+    
+    conn.on('data', handleSyncData);
+    
+    conn.on('close', () => {
+      document.getElementById('conn-status').innerText = 'Odpojeno';
+      document.getElementById('conn-status').classList.remove('connected');
+    });
+  }
 
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function sendSync(data) {
+    if (conn && conn.open && !isSyncing) {
+      conn.send(data);
+    }
+  }
 
-function relTime(iso) {
-  const d = Math.floor((Date.now() - new Date(iso)) / 864e5);
-  if (d === 0) return 'today';
-  if (d === 1) return 'yesterday';
-  if (d < 30) return d + 'd ago';
-  if (d < 365) return Math.floor(d/30) + 'mo ago';
-  return Math.floor(d/365) + 'y ago';
-}
+  // --- ZPRACOVÁNÍ PŘÍCHOZÍCH DAT ---
+  function handleSyncData(data) {
+    isSyncing = true; // Zapneme pojistku, abychom odesílateli neposlali jeho vlastní akci zpět
 
-function log(msg, cls='') {
-  const el = document.getElementById('log');
-  const t = new Date();
-  const ts = [t.getHours(),t.getMinutes(),t.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-  const e = document.createElement('div');
-  e.className = 'le';
-  e.innerHTML = `<span class="lt">${ts}</span><span class="lm ${cls}">${msg}</span>`;
-  el.appendChild(e); el.scrollTop = el.scrollHeight;
-  while (el.children.length > 80) el.removeChild(el.firstChild);
-}
+    if (data.action === 'load') {
+      document.getElementById('url-input').value = data.url;
+      loadMedia(false); // false = neposílat znovu kamarádovi
+    }
+    
+    // YouTube synchronizace
+    if (currentMode === 'yt' && ytReady) {
+      if (data.action === 'play') {
+        ytPlayer.seekTo(data.time, true);
+        ytPlayer.playVideo();
+      } else if (data.action === 'pause') {
+        ytPlayer.seekTo(data.time, true);
+        ytPlayer.pauseVideo();
+      } else if (data.action === 'seek') {
+        ytPlayer.seekTo(data.time, true);
+      }
+    }
+    
+    // Kick synchronizace
+    if (currentMode === 'kick') {
+      if (data.action === 'play') {
+        kickVideo.currentTime = data.time;
+        kickVideo.play();
+      } else if (data.action === 'pause') {
+        kickVideo.currentTime = data.time;
+        kickVideo.pause();
+      } else if (data.action === 'seek') {
+        kickVideo.currentTime = data.time;
+      }
+    }
 
-const params = new URLSearchParams(location.search);
-if (params.get('url')) urlInput.value = decodeURIComponent(params.get('url'));
-if (params.get('connect')) document.getElementById('peer-input').value = params.get('connect');
+    // Vypnutí pojistky po krátké prodlevě
+    setTimeout(() => { isSyncing = false; }, 300);
+  }
 
-setStatus('connecting', 'connecting…');
-initPeer();
-showCommentsPanel(false);
+  // --- PŘEPÍNÁNÍ A NAČÍTÁNÍ VIDEÍ ---
+  function loadMedia(broadcast = false) {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) return;
 
-peer.on('open', () => {
-  if (params.get('url')) loadURL(false);
-  if (params.get('connect')) joinRoom();
-});
+    if (broadcast) {
+      sendSync({ action: 'load', url: url });
+    }
+
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+
+    if (ytMatch && ytReady) {
+      // Je to YouTube
+      currentMode = 'yt';
+      document.getElementById('layer-kick').classList.remove('active');
+      document.getElementById('layer-yt').classList.add('active');
+      
+      if (hls) { hls.destroy(); kickVideo.pause(); }
+      
+      ytPlayer.loadVideoById(ytMatch[1]);
+      
+    } else if (url.endsWith('.m3u8')) {
+      // Je to Kick / HLS
+      currentMode = 'kick';
+      document.getElementById('layer-yt').classList.remove('active');
+      document.getElementById('layer-kick').classList.add('active');
+      
+      if (ytReady) ytPlayer.pauseVideo();
+
+      if (Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(kickVideo);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => kickVideo.play());
+      } else if (kickVideo.canPlayType('application/vnd.apple.mpegurl')) {
+        kickVideo.src = url;
+        kickVideo.play();
+      }
+    } else {
+      alert("Nepodporovaný odkaz. Vlož YouTube odkaz nebo přímý m3u8 stream.");
+    }
+  }
+
+  // --- SLEDOVÁNÍ UDÁLOSTÍ: KICK ---
+  kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
+  kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
+  kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
+
+  // --- SLEDOVÁNÍ UDÁLOSTÍ: YOUTUBE ---
+  function onYtStateChange(event) {
+    if (isSyncing) return;
+    const time = ytPlayer.getCurrentTime();
+    
+    if (event.data === YT.PlayerState.PLAYING) {
+      sendSync({ action: 'play', time: time });
+    } else if (event.data === YT.PlayerState.PAUSED) {
+      sendSync({ action: 'pause', time: time });
+    }
+  }
+
+  // Detekce přetáčení u YouTube (YouTube nemá nativní událost "seeked", musíme to hlídat v intervalu)
+  setInterval(() => {
+    if (currentMode === 'yt' && ytReady && !isSyncing) {
+      const state = ytPlayer.getPlayerState();
+      const currentTime = ytPlayer.getCurrentTime();
+      
+      // Pokud se čas skokově změní o více než 1.5 sekundy a zrovna video hraje nebo je pozastavené
+      if (Math.abs(currentTime - ytLastTime) > 1.5 && (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED)) {
+        sendSync({ action: 'seek', time: currentTime });
+      }
+      ytLastTime = currentTime;
+    }
+  }, 500);
+
 </script>
 </body>
 </html>
