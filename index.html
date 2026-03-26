@@ -467,4 +467,125 @@
 
     if (broadcast) sendSync({ action: 'load', url: url });
 
-    const ytMatch = url.match(/(?:youtube\.com\/(?:
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+
+    if (ytMatch && ytReady) {
+      currentMode = 'yt';
+      currentYtId = ytMatch[1];
+      document.getElementById('layer-kick').classList.remove('active');
+      document.getElementById('layer-yt').classList.add('active');
+      document.getElementById('comments-section').classList.add('active');
+      
+      if (hls) { hls.destroy(); kickVideo.pause(); }
+      ytPlayer.loadVideoById(currentYtId);
+      
+      fetchAndShareComments();
+
+    } else if (url.endsWith('.m3u8')) {
+      currentMode = 'kick';
+      currentYtId = null;
+      document.getElementById('layer-yt').classList.remove('active');
+      document.getElementById('layer-kick').classList.add('active');
+      document.getElementById('comments-section').classList.remove('active');
+      
+      if (ytReady) ytPlayer.pauseVideo();
+
+      if (Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(kickVideo);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => kickVideo.play());
+      } else if (kickVideo.canPlayType('application/vnd.apple.mpegurl')) {
+        kickVideo.src = url;
+        kickVideo.play();
+      }
+    }
+  }
+
+  async function fetchAndShareComments() {
+    const apiKey = localStorage.getItem('synco_yt_api_key');
+    const list = document.getElementById('comments-list');
+    
+    if (!apiKey) {
+      list.innerHTML = '<div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoře v liště. Pokud ho zadá parťák a pustí video, uvidíš komentáře automaticky.</div>';
+      return;
+    }
+    if (!currentYtId) return;
+
+    list.innerHTML = '<div class="comment-system">Načítám komentáře...</div>';
+    
+    try {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${currentYtId}&maxResults=50&order=relevance&key=${apiKey}`);
+      const data = await res.json();
+      
+      if (data.error) { 
+        list.innerHTML = `<div class="comment-system" style="color:var(--red)">Chyba API: ${data.error.message}</div>`; 
+        return; 
+      }
+      
+      const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
+      renderComments(snippets, data.pageInfo?.totalResults);
+      
+      if (conn && conn.open) {
+        sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults });
+      }
+      
+    } catch(e) {
+      list.innerHTML = '<div class="comment-system" style="color:var(--red)">Nepodařilo se načíst komentáře. Zkontroluj klíč.</div>';
+    }
+  }
+
+  function renderComments(snippets, totalResults) {
+    const list = document.getElementById('comments-list');
+    document.getElementById('comments-count').innerText = totalResults ? `(${totalResults})` : '';
+    
+    if (!snippets || snippets.length === 0) {
+      list.innerHTML = '<div class="comment-system">Tohle video nemá žádné komentáře.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    snippets.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'comment';
+      
+      const d = Math.floor((Date.now() - new Date(c.publishedAt)) / 864e5);
+      const timeStr = d === 0 ? 'dnes' : (d === 1 ? 'včera' : `${d} dní zpět`);
+
+      div.innerHTML = `
+        <img src="${c.authorProfileImageUrl || ''}" onerror="this.style.display='none'">
+        <div class="comment-content">
+          <div><span class="comment-author">${c.authorDisplayName}</span><span class="comment-date">${timeStr}</span></div>
+          <div class="comment-text">${c.textDisplay}</div>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
+  kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
+  kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
+
+  function onYtStateChange(event) {
+    if (isSyncing) return;
+    const time = ytPlayer.getCurrentTime();
+    if (event.data === YT.PlayerState.PLAYING) sendSync({ action: 'play', time: time });
+    else if (event.data === YT.PlayerState.PAUSED) sendSync({ action: 'pause', time: time });
+  }
+
+  setInterval(() => {
+    if (currentMode === 'yt' && ytReady && !isSyncing) {
+      const state = ytPlayer.getPlayerState();
+      const currentTime = ytPlayer.getCurrentTime();
+      if (Math.abs(currentTime - ytLastTime) > 1.5 && (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED)) {
+        sendSync({ action: 'seek', time: currentTime });
+      }
+      ytLastTime = currentTime;
+    }
+  }, 500);
+
+</script>
+</body>
+</html>
