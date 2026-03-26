@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synco - Absolutní kino</title>
+<title>Synco - Kino Režim</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,13 +13,18 @@
     --bg-panel: #18181b;
     --bg-hover: #27272a;
     --border: #27272a;
+    
     --purple: #9333ea;
     --purple-hover: #a855f7;
     --purple-glow: rgba(147, 51, 234, 0.15);
+    
     --teal: #2dd4bf;
+    --teal-hover: #14b8a6;
     --teal-bg: rgba(45, 212, 191, 0.1);
+    
     --red: #fb7185;
     --red-bg: rgba(251, 113, 133, 0.1);
+    
     --text-main: #f8fafc;
     --text-muted: #a1a1aa;
   }
@@ -51,6 +56,16 @@
   button:active { transform: translateY(0); }
   button.secondary { background: var(--bg-hover); color: var(--text-main); border: 1px solid var(--border); }
   button.secondary:hover { background: #3f3f46; border-color: #52525b; }
+  
+  button.btn-menthol { 
+    background: var(--teal); 
+    color: #042f2e; 
+    box-shadow: 0 0 12px rgba(45, 212, 191, 0.25);
+  }
+  button.btn-menthol:hover { 
+    background: var(--teal-hover); 
+    box-shadow: 0 0 16px rgba(45, 212, 191, 0.4); 
+  }
   
   .status { font-size: 13px; padding: 8px 14px; border-radius: 8px; background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
@@ -94,21 +109,28 @@
   .playlist-items::-webkit-scrollbar { width: 6px; }
   .playlist-items::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
   
-  .playlist-item { background: var(--bg-app); border: 1px solid var(--border); padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; position: relative; display: flex; gap: 12px; align-items: center; padding-right: 40px; }
+  /* Rozšíření CSS o efekty pro přetahování (Drag & Drop) */
+  .playlist-item { background: var(--bg-app); border: 1px solid var(--border); padding: 8px; border-radius: 10px; cursor: grab; transition: all 0.2s ease; position: relative; display: flex; gap: 12px; align-items: center; padding-right: 40px; }
+  .playlist-item:active { cursor: grabbing; }
   .playlist-item:hover { border-color: #3f3f46; transform: translateX(2px); }
   .playlist-item.active { border-color: var(--purple); background: var(--purple-glow); }
   
+  /* Třídy pro probíhající přetahování */
+  .playlist-item.dragging { opacity: 0.4; border: 1px dashed var(--teal); background: var(--bg-hover); transform: scale(0.98); }
+  .playlist-item.drag-over-top { border-top: 2px solid var(--teal); }
+  .playlist-item.drag-over-bottom { border-bottom: 2px solid var(--teal); }
+  
   .playlist-thumb { width: 90px; height: 50px; background: var(--bg-hover); border-radius: 6px; background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); font-weight: 700; letter-spacing: 1px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
   .playlist-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
-  .playlist-title { font-size: 14px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .playlist-url { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .playlist-title { font-size: 14px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .playlist-url { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   
   .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 18px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; transition: 0.2s; }
   .btn-remove:hover { background: var(--red-bg); color: var(--red); }
 
   #start-overlay { position: fixed; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: var(--bg-panel); border: 1px solid var(--border); padding: 50px 40px; border-radius: 20px; text-align: center; max-width: 440px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-  .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--purple-glow); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--purple); }
+  .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--teal-bg); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--teal); }
   .start-box h2 { color: var(--text-main); margin-bottom: 15px; font-size: 26px; }
   .start-box p { color: var(--text-muted); font-size: 15px; margin-bottom: 30px; line-height: 1.6; }
   .start-box button { font-size: 18px; padding: 14px 24px; width: 100%; border-radius: 12px; }
@@ -122,7 +144,7 @@
     <div class="icon">🍿</div>
     <h2>Vítej v Synco</h2>
     <p>Připojuješ se do místnosti <span id="room-name-display"></span>. Kliknutím níže aktivuješ kino režim a synchronizaci.</p>
-    <button onclick="startApp()">Vstoupit do kina</button>
+    <button class="btn-menthol" onclick="startApp()">Vstoupit do kina</button>
   </div>
 </div>
 
@@ -144,7 +166,7 @@
   <div class="group" style="flex: 1; min-width: 300px;">
     <input type="text" id="url-input" placeholder="YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
-    <button onclick="handleMediaAction('play')">Pustit</button>
+    <button class="btn-menthol" onclick="handleMediaAction('play')">Pustit</button>
   </div>
   
   <div class="group" style="flex: 0; margin-left: auto;">
@@ -365,6 +387,15 @@
     
     if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
 
+    // Reakce na přeskládání fronty od parťáka
+    if (data.action === 'queue_reorder') {
+      playlist = data.playlist;
+      saveLocalData();
+      renderPlaylist();
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 300);
+      return;
+    }
+
     if (data.action === 'comments_data') {
       renderComments(data.items, data.totalResults);
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
@@ -414,15 +445,17 @@
     if (broadcast) sendSync({ action: 'queue_remove', url: url });
   }
 
+  // Překreslení fronty včetně funkcí pro Drag & Drop
   function renderPlaylist() {
     const container = document.getElementById('playlist-items');
     document.getElementById('playlist-count').innerText = playlist.length;
     container.innerHTML = '';
     const currentUrl = document.getElementById('url-input').value.trim();
 
-    playlist.forEach(item => {
+    playlist.forEach((item, index) => {
       const div = document.createElement('div');
       div.className = 'playlist-item' + (item.url === currentUrl ? ' active' : '');
+      div.draggable = true; // Aktivace přetahování
       
       const thumbDiv = document.createElement('div');
       thumbDiv.className = 'playlist-thumb';
@@ -452,7 +485,71 @@
       div.appendChild(infoDiv);
       div.appendChild(removeBtn);
 
+      // --- LOGIKA DRAG & DROP ---
+      div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+        setTimeout(() => div.classList.add('dragging'), 0);
+      });
+
+      div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+        document.querySelectorAll('.playlist-item').forEach(el => {
+          el.classList.remove('drag-over-top');
+          el.classList.remove('drag-over-bottom');
+        });
+      });
+
+      div.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const bounding = div.getBoundingClientRect();
+        const offset = bounding.y + (bounding.height / 2);
+        if (e.clientY - offset > 0) {
+          div.classList.add('drag-over-bottom');
+          div.classList.remove('drag-over-top');
+        } else {
+          div.classList.add('drag-over-top');
+          div.classList.remove('drag-over-bottom');
+        }
+      });
+
+      div.addEventListener('dragleave', () => {
+        div.classList.remove('drag-over-top');
+        div.classList.remove('drag-over-bottom');
+      });
+
+      div.addEventListener('drop', (e) => {
+        e.preventDefault();
+        div.classList.remove('drag-over-top');
+        div.classList.remove('drag-over-bottom');
+        
+        const draggedIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        if (isNaN(draggedIdx) || draggedIdx === index) return;
+
+        const bounding = div.getBoundingClientRect();
+        const offset = bounding.y + (bounding.height / 2);
+        let dropIndex = index;
+        
+        if (e.clientY - offset > 0) {
+          dropIndex++;
+        }
+        if (draggedIdx < dropIndex) {
+          dropIndex--;
+        }
+
+        // Přesunutí v poli a uložení
+        const [movedItem] = playlist.splice(draggedIdx, 1);
+        playlist.splice(dropIndex, 0, movedItem);
+
+        saveLocalData();
+        renderPlaylist();
+        sendSync({ action: 'queue_reorder', playlist: playlist }); // Poslat přeskládání parťákovi
+      });
+
+      // Spuštění videa kliknutím
       div.onclick = () => { document.getElementById('url-input').value = item.url; loadMedia(true); };
+      
       container.appendChild(div);
     });
   }
