@@ -26,7 +26,6 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   
-  /* Odemčeno scrollování stránky */
   body { 
     background: var(--bg-app); 
     color: var(--text-main); 
@@ -60,19 +59,16 @@
   .status.error { background: var(--red-bg); color: var(--red); border-color: rgba(251, 113, 133, 0.2); }
   .status.error::before { background: var(--red); box-shadow: 0 0 8px var(--red); }
   
-  /* Rozvržení: Omezená max. šířka, aby video nebylo zbytečně roztažené na ultra širokých monitorech */
   .main-area { display: flex; padding: 15px; gap: 15px; max-width: 1800px; margin: 0 auto; align-items: flex-start; }
   
   .left-panel { flex: 1; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
   
-  /* Video má nyní pevný poměr stran 16:9, nikdy se nezmenší kvůli komentářům */
   .video-container { width: 100%; aspect-ratio: 16 / 9; position: relative; background: #000; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   video { width: 100%; height: 100%; outline: none; background: #000; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-  /* Komentáře - už neomezujeme jejich výšku, stránka se roztáhne podle nich */
   .comments-container { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
   .comments-container.active { display: flex; }
   
@@ -89,7 +85,6 @@
   .comment-text { color: var(--text-main); margin-top: 6px; word-break: break-word; }
   .comment-system { color: var(--text-muted); text-align: center; font-style: italic; padding: 20px 0; }
 
-  /* Playlist - Sticky chování (drží se na obrazovce při scrollování dolů) */
   .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0; position: sticky; top: 15px; height: calc(100vh - 100px); }
   .playlist-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
   .playlist-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
@@ -134,25 +129,25 @@
 <div class="toolbar">
   <div class="logo">Synco<span>.</span></div>
 
-  <div class="group" style="flex: 0 1 auto; min-width: 180px;">
+  <div class="group" style="flex: 0 1 auto; margin-left: 10px;">
     <span class="group-label">Pozvánka:</span>
-    <input type="text" id="invite-link" readonly onclick="this.select()" style="max-width: 140px;" title="Kliknutím zkopíruješ">
+    <input type="text" id="invite-link" readonly onclick="this.select()" style="width: 280px;" title="Kliknutím zkopíruješ">
     <button class="secondary" onclick="copyLink()" id="copy-btn">Kopírovat</button>
   </div>
   
-  <div class="group" style="flex: 0 1 auto; min-width: 180px;">
+  <div class="group" style="flex: 0 1 auto;">
     <span class="group-label">API Klíč:</span>
-    <input type="password" id="yt-api-key" placeholder="Vlož klíč..." style="max-width: 130px;">
+    <input type="password" id="yt-api-key" placeholder="Vlož klíč..." style="width: 130px;">
     <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit</button>
   </div>
   
-  <div class="group" style="flex: 1; min-width: 280px;">
-    <input type="text" id="url-input" placeholder="Vlož YouTube nebo Kick odkaz...">
+  <div class="group" style="flex: 1; max-width: 450px;">
+    <input type="text" id="url-input" placeholder="YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
     <button onclick="handleMediaAction('play')">Pustit</button>
   </div>
   
-  <div class="group" style="flex: 0;">
+  <div class="group" style="flex: 0; margin-left: auto;">
     <div id="conn-status" class="status">Čekám...</div>
   </div>
 </div>
@@ -472,125 +467,4 @@
 
     if (broadcast) sendSync({ action: 'load', url: url });
 
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-
-    if (ytMatch && ytReady) {
-      currentMode = 'yt';
-      currentYtId = ytMatch[1];
-      document.getElementById('layer-kick').classList.remove('active');
-      document.getElementById('layer-yt').classList.add('active');
-      document.getElementById('comments-section').classList.add('active');
-      
-      if (hls) { hls.destroy(); kickVideo.pause(); }
-      ytPlayer.loadVideoById(currentYtId);
-      
-      fetchAndShareComments();
-
-    } else if (url.endsWith('.m3u8')) {
-      currentMode = 'kick';
-      currentYtId = null;
-      document.getElementById('layer-yt').classList.remove('active');
-      document.getElementById('layer-kick').classList.add('active');
-      document.getElementById('comments-section').classList.remove('active');
-      
-      if (ytReady) ytPlayer.pauseVideo();
-
-      if (Hls.isSupported()) {
-        if (hls) hls.destroy();
-        hls = new Hls();
-        hls.loadSource(url);
-        hls.attachMedia(kickVideo);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => kickVideo.play());
-      } else if (kickVideo.canPlayType('application/vnd.apple.mpegurl')) {
-        kickVideo.src = url;
-        kickVideo.play();
-      }
-    }
-  }
-
-  async function fetchAndShareComments() {
-    const apiKey = localStorage.getItem('synco_yt_api_key');
-    const list = document.getElementById('comments-list');
-    
-    if (!apiKey) {
-      list.innerHTML = '<div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoře v liště. Pokud ho zadá parťák a pustí video, uvidíš komentáře automaticky.</div>';
-      return;
-    }
-    if (!currentYtId) return;
-
-    list.innerHTML = '<div class="comment-system">Načítám komentáře...</div>';
-    
-    try {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${currentYtId}&maxResults=50&order=relevance&key=${apiKey}`);
-      const data = await res.json();
-      
-      if (data.error) { 
-        list.innerHTML = `<div class="comment-system" style="color:var(--red)">Chyba API: ${data.error.message}</div>`; 
-        return; 
-      }
-      
-      const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
-      renderComments(snippets, data.pageInfo?.totalResults);
-      
-      if (conn && conn.open) {
-        sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults });
-      }
-      
-    } catch(e) {
-      list.innerHTML = '<div class="comment-system" style="color:var(--red)">Nepodařilo se načíst komentáře. Zkontroluj klíč.</div>';
-    }
-  }
-
-  function renderComments(snippets, totalResults) {
-    const list = document.getElementById('comments-list');
-    document.getElementById('comments-count').innerText = totalResults ? `(${totalResults})` : '';
-    
-    if (!snippets || snippets.length === 0) {
-      list.innerHTML = '<div class="comment-system">Tohle video nemá žádné komentáře.</div>';
-      return;
-    }
-
-    list.innerHTML = '';
-    snippets.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'comment';
-      
-      const d = Math.floor((Date.now() - new Date(c.publishedAt)) / 864e5);
-      const timeStr = d === 0 ? 'dnes' : (d === 1 ? 'včera' : `${d} dní zpět`);
-
-      div.innerHTML = `
-        <img src="${c.authorProfileImageUrl || ''}" onerror="this.style.display='none'">
-        <div class="comment-content">
-          <div><span class="comment-author">${c.authorDisplayName}</span><span class="comment-date">${timeStr}</span></div>
-          <div class="comment-text">${c.textDisplay}</div>
-        </div>
-      `;
-      list.appendChild(div);
-    });
-  }
-
-  kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
-  kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
-  kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
-
-  function onYtStateChange(event) {
-    if (isSyncing) return;
-    const time = ytPlayer.getCurrentTime();
-    if (event.data === YT.PlayerState.PLAYING) sendSync({ action: 'play', time: time });
-    else if (event.data === YT.PlayerState.PAUSED) sendSync({ action: 'pause', time: time });
-  }
-
-  setInterval(() => {
-    if (currentMode === 'yt' && ytReady && !isSyncing) {
-      const state = ytPlayer.getPlayerState();
-      const currentTime = ytPlayer.getCurrentTime();
-      if (Math.abs(currentTime - ytLastTime) > 1.5 && (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED)) {
-        sendSync({ action: 'seek', time: currentTime });
-      }
-      ytLastTime = currentTime;
-    }
-  }, 500);
-
-</script>
-</body>
-</html>
+    const ytMatch = url.match(/(?:youtube\.com\/(?:
