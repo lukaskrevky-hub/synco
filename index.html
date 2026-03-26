@@ -25,12 +25,22 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg-app); color: var(--text-main); font-family: 'Outfit', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  
+  /* Odemčeno scrollování stránky */
+  body { 
+    background: var(--bg-app); 
+    color: var(--text-main); 
+    font-family: 'Outfit', sans-serif; 
+    min-height: 100vh; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+  }
   
   .toolbar { background: var(--bg-panel); margin: 15px 15px 0 15px; padding: 12px 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10; }
   .logo { font-size: 20px; font-weight: 700; color: var(--text-main); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
   .logo span { color: var(--purple); }
-  .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 250px; }
+  
+  .group { display: flex; gap: 10px; align-items: center; }
   .group-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
   
   input { background: var(--bg-app); border: 1px solid var(--border); color: var(--text-main); padding: 10px 14px; border-radius: 8px; flex: 1; outline: none; font-family: inherit; transition: 0.2s; }
@@ -50,42 +60,37 @@
   .status.error { background: var(--red-bg); color: var(--red); border-color: rgba(251, 113, 133, 0.2); }
   .status.error::before { background: var(--red); box-shadow: 0 0 8px var(--red); }
   
-  .main-area { display: flex; flex: 1; min-height: 0; padding: 15px; gap: 15px; }
+  /* Rozvržení: Omezená max. šířka, aby video nebylo zbytečně roztažené na ultra širokých monitorech */
+  .main-area { display: flex; padding: 15px; gap: 15px; max-width: 1800px; margin: 0 auto; align-items: flex-start; }
   
-  /* Levá část: Video + Komentáře */
   .left-panel { flex: 1; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
   
-  .video-container { flex: 1; position: relative; background: #000; min-height: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
+  /* Video má nyní pevný poměr stran 16:9, nikdy se nezmenší kvůli komentářům */
+  .video-container { width: 100%; aspect-ratio: 16 / 9; position: relative; background: #000; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   video { width: 100%; height: 100%; outline: none; background: #000; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-  /* Sekce komentářů */
-  .comments-container { height: 260px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: none; }
+  /* Komentáře - už neomezujeme jejich výšku, stránka se roztáhne podle nich */
+  .comments-container { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
   .comments-container.active { display: flex; }
   
-  .comments-header { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); flex-shrink: 0; }
-  .comments-header span { font-weight: 700; color: var(--text-main); font-size: 15px; }
+  .comments-header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); border-radius: 16px 16px 0 0; }
+  .comments-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
   
-  .api-wrap { display: flex; gap: 10px; align-items: center; }
-  .api-wrap input { padding: 6px 12px; font-size: 12px; width: 200px; }
-  .api-wrap button { padding: 6px 12px; font-size: 12px; }
+  .comments-list { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
   
-  .comments-list { flex: 1; overflow-y: auto; padding: 15px 20px; display: flex; flex-direction: column; gap: 15px; }
-  .comments-list::-webkit-scrollbar { width: 6px; }
-  .comments-list::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
-  
-  .comment { display: flex; gap: 12px; font-size: 13px; line-height: 1.5; }
-  .comment img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+  .comment { display: flex; gap: 15px; font-size: 14px; line-height: 1.5; }
+  .comment img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
   .comment-content { flex: 1; min-width: 0; }
-  .comment-author { font-weight: 700; color: var(--purple-hover); margin-right: 8px; }
-  .comment-date { color: var(--text-muted); font-size: 11px; }
-  .comment-text { color: var(--text-main); margin-top: 4px; word-break: break-word; }
+  .comment-author { font-weight: 700; color: var(--purple-hover); margin-right: 10px; }
+  .comment-date { color: var(--text-muted); font-size: 12px; }
+  .comment-text { color: var(--text-main); margin-top: 6px; word-break: break-word; }
   .comment-system { color: var(--text-muted); text-align: center; font-style: italic; padding: 20px 0; }
 
-  /* Playlist panel */
-  .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+  /* Playlist - Sticky chování (drží se na obrazovce při scrollování dolů) */
+  .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0; position: sticky; top: 15px; height: calc(100vh - 100px); }
   .playlist-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
   .playlist-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
   .playlist-header .count { background: var(--purple-glow); color: var(--purple-hover); padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
@@ -106,7 +111,7 @@
   .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 18px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; transition: 0.2s; }
   .btn-remove:hover { background: var(--red-bg); color: var(--red); }
 
-  #start-overlay { position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+  #start-overlay { position: fixed; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: var(--bg-panel); border: 1px solid var(--border); padding: 50px 40px; border-radius: 20px; text-align: center; max-width: 440px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
   .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--purple-glow); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--purple); }
   .start-box h2 { color: var(--text-main); margin-bottom: 15px; font-size: 26px; }
@@ -129,13 +134,19 @@
 <div class="toolbar">
   <div class="logo">Synco<span>.</span></div>
 
-  <div class="group" style="margin-left: 20px;">
+  <div class="group" style="flex: 0 1 auto; min-width: 180px;">
     <span class="group-label">Pozvánka:</span>
-    <input type="text" id="invite-link" readonly onclick="this.select()">
+    <input type="text" id="invite-link" readonly onclick="this.select()" style="max-width: 140px;" title="Kliknutím zkopíruješ">
     <button class="secondary" onclick="copyLink()" id="copy-btn">Kopírovat</button>
   </div>
   
-  <div class="group">
+  <div class="group" style="flex: 0 1 auto; min-width: 180px;">
+    <span class="group-label">API Klíč:</span>
+    <input type="password" id="yt-api-key" placeholder="Vlož klíč..." style="max-width: 130px;">
+    <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit</button>
+  </div>
+  
+  <div class="group" style="flex: 1; min-width: 280px;">
     <input type="text" id="url-input" placeholder="Vlož YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
     <button onclick="handleMediaAction('play')">Pustit</button>
@@ -156,13 +167,9 @@
     <div class="comments-container" id="comments-section">
       <div class="comments-header">
         <span>YouTube Komentáře <span id="comments-count" style="color:var(--text-muted); font-weight:normal; font-size:13px; margin-left:8px;"></span></span>
-        <div class="api-wrap">
-          <input type="password" id="yt-api-key" placeholder="YouTube Data API Key">
-          <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit a Načíst</button>
-        </div>
       </div>
       <div class="comments-list" id="comments-list">
-        <div class="comment-system">Pro zobrazení komentářů zadej API klíč a spusť YouTube video. Pokud ho zadá parťák, uvidíš komentáře automaticky.</div>
+        <div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoře v liště a spusť YouTube video. Pokud ho zadá parťák, uvidíš komentáře automaticky.</div>
       </div>
     </div>
   </div>
@@ -177,13 +184,13 @@
 </div>
 
 <script>
-  // --- ZÁKLADNÍ BEZPEČNOST (Zpomalovač zvědavců) ---
+  // Blokování klávesových zkratek
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.onkeydown = function(e) {
-    if(e.keyCode == 123) return false; // F12
-    if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
-    if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
-    if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
+    if(e.keyCode == 123) return false;
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+    if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -200,7 +207,6 @@
   let playlist = []; 
   let currentYtId = null;
 
-  // Načtení API klíče
   const savedKey = localStorage.getItem('synco_yt_api_key');
   if (savedKey) {
     document.getElementById('yt-api-key').value = savedKey;
@@ -259,7 +265,6 @@
     }
   }
 
-  // --- STAV A PROMĚNNÉ ---
   let peer = null, conn = null, isSyncing = false, syncTimeout = null;
   let currentMode = 'none', ytPlayer = null, ytReady = false, ytLastTime = 0;
   const kickVideo = document.getElementById('kick-player');
@@ -267,7 +272,6 @@
 
   const peerConfig = { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } };
 
-  // --- YOUTUBE API ---
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -280,7 +284,6 @@
     });
   };
 
-  // --- PŘIPOJOVACÍ LOGIKA ---
   function updateStatus(text, type = '') {
     const el = document.getElementById('conn-status');
     el.innerText = text;
@@ -327,9 +330,9 @@
   function setupConnection(c) {
     if (conn) conn.close();
     conn = c;
-    conn.on('open', () => { updateStatus('Propojeno s parťákem', 'connected'); });
+    conn.on('open', () => { updateStatus('Propojeno', 'connected'); });
     conn.on('data', handleSyncData);
-    conn.on('close', () => { updateStatus('Parťák se odpojil', 'error'); });
+    conn.on('close', () => { updateStatus('Parťák odpojen', 'error'); });
   }
 
   function sendSync(data) { if (conn && conn.open && !isSyncing) conn.send(data); }
@@ -368,7 +371,6 @@
     
     if (data.action === 'queue_remove') { removeFromPlaylist(data.url, false); syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return; }
 
-    // Přijetí komentářů od parťáka
     if (data.action === 'comments_data') {
       renderComments(data.items, data.totalResults);
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
@@ -477,12 +479,11 @@
       currentYtId = ytMatch[1];
       document.getElementById('layer-kick').classList.remove('active');
       document.getElementById('layer-yt').classList.add('active');
-      document.getElementById('comments-section').classList.add('active'); // Zobrazí komentáře
+      document.getElementById('comments-section').classList.add('active');
       
       if (hls) { hls.destroy(); kickVideo.pause(); }
       ytPlayer.loadVideoById(currentYtId);
       
-      // Pokus o načtení komentářů
       fetchAndShareComments();
 
     } else if (url.endsWith('.m3u8')) {
@@ -490,7 +491,7 @@
       currentYtId = null;
       document.getElementById('layer-yt').classList.remove('active');
       document.getElementById('layer-kick').classList.add('active');
-      document.getElementById('comments-section').classList.remove('active'); // Skryje komentáře u Kicku
+      document.getElementById('comments-section').classList.remove('active');
       
       if (ytReady) ytPlayer.pauseVideo();
 
@@ -507,13 +508,12 @@
     }
   }
 
-  // --- LOGIKA KOMENTÁŘŮ ---
   async function fetchAndShareComments() {
     const apiKey = localStorage.getItem('synco_yt_api_key');
     const list = document.getElementById('comments-list');
     
     if (!apiKey) {
-      list.innerHTML = '<div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoru. Pokud ho zadá parťák a pustí video, uvidíš komentáře automaticky.</div>';
+      list.innerHTML = '<div class="comment-system">Pro zobrazení komentářů zadej API klíč nahoře v liště. Pokud ho zadá parťák a pustí video, uvidíš komentáře automaticky.</div>';
       return;
     }
     if (!currentYtId) return;
@@ -532,7 +532,6 @@
       const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
       renderComments(snippets, data.pageInfo?.totalResults);
       
-      // Pošli je kamarádovi!
       if (conn && conn.open) {
         sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults });
       }
@@ -556,7 +555,6 @@
       const div = document.createElement('div');
       div.className = 'comment';
       
-      // Čas
       const d = Math.floor((Date.now() - new Date(c.publishedAt)) / 864e5);
       const timeStr = d === 0 ? 'dnes' : (d === 1 ? 'včera' : `${d} dní zpět`);
 
@@ -571,7 +569,6 @@
     });
   }
 
-  // Sledování změn na přehrávačích
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
