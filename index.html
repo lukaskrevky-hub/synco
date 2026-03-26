@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synco - Čistá verze</title>
+<title>Synco - Společné sledování</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
@@ -12,38 +12,47 @@
   
   /* Horní ovládací panel */
   .toolbar { background: #161b20; padding: 15px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #242c34; z-index: 10; }
-  .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 300px; }
+  .group { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 250px; }
   input { background: #080a0c; border: 1px solid #242c34; color: #fff; padding: 8px 12px; border-radius: 6px; flex: 1; outline: none; }
   input:focus { border-color: #5b8dee; }
-  button { background: #5b8dee; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  input[readonly] { background: #1e252c; color: #7ba4f2; cursor: copy; }
+  button { background: #5b8dee; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; }
   button:hover { background: #7ba4f2; }
-  .status { font-size: 14px; padding: 4px 8px; border-radius: 4px; background: #3d4d5a; }
-  .status.connected { background: #4ade80; color: #0d2318; }
+  
+  .status { font-size: 14px; padding: 6px 10px; border-radius: 4px; background: #3d4d5a; white-space: nowrap; }
+  .status.connected { background: #4ade80; color: #0d2318; font-weight: bold; }
   
   /* Prostor pro videa */
   .video-container { flex: 1; position: relative; background: #000; }
   
-  /* Triky se z-indexem místo display:none, aby se YT nezasekl */
   .player-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
   .player-layer.active { z-index: 2; visibility: visible; opacity: 1; }
   
   video { width: 100%; height: 100%; outline: none; }
   iframe { width: 100%; height: 100%; border: none; }
+
+  /* Překryvná vrstva pro kamaráda (nutné kvůli Autoplay ochraně prohlížeče) */
+  #join-overlay { display: none; position: absolute; inset: 0; background: rgba(8, 10, 12, 0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  #join-overlay h2 { color: #5b8dee; }
+  #join-btn { font-size: 18px; padding: 15px 30px; }
 </style>
 </head>
 <body>
 
 <div class="toolbar">
   <div class="group">
-    <input type="text" id="url-input" placeholder="Vlož odkaz na YouTube nebo Kick (.m3u8)...">
-    <button onclick="loadMedia(true)">Načíst video</button>
+    <span style="font-size: 13px; color: #7d8c99; white-space: nowrap;">Pozvánka:</span>
+    <input type="text" id="invite-link" readonly value="Generuji odkaz..." onclick="this.select()">
+    <button onclick="copyLink()" id="copy-btn">Kopírovat</button>
   </div>
   
   <div class="group">
-    <span style="font-size: 13px; color: #7d8c99;">Moje ID: <strong id="my-id" style="color:#fff; user-select:all;">načítám...</strong></span>
-    <input type="text" id="peer-input" placeholder="Vlož ID kamaráda...">
-    <button onclick="connectToPeer()">Připojit</button>
-    <div id="conn-status" class="status">Odpojeno</div>
+    <input type="text" id="url-input" placeholder="Odkaz na YouTube nebo Kick (.m3u8)">
+    <button onclick="loadMedia(true)">Pustit všem</button>
+  </div>
+  
+  <div class="group" style="flex: 0;">
+    <div id="conn-status" class="status">Čekám na připojení...</div>
   </div>
 </div>
 
@@ -55,23 +64,31 @@
   <div id="layer-kick" class="player-layer">
     <video id="kick-player" controls></video>
   </div>
+
+  <div id="join-overlay">
+    <h2>Byl jsi pozván ke sledování</h2>
+    <p>Pro synchronizaci zvuku a obrazu je nutné kliknout na tlačítko.</p>
+    <button id="join-btn" onclick="acceptInvite()">Vstoupit do místnosti</button>
+  </div>
 </div>
 
 <script>
   // --- STAV A PROMĚNNÉ ---
   let peer = null;
   let conn = null;
-  let isSyncing = false; // Pojistka proti zacyklení událostí
-  let currentMode = 'none'; // 'yt' nebo 'kick'
+  let isSyncing = false;
+  let currentMode = 'none';
   
-  // YouTube proměnné
   let ytPlayer = null;
   let ytReady = false;
   let ytLastTime = 0;
   
-  // Kick proměnné
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
+
+  // Analýza URL pro zjištění, zda jsem host (mám ?room=...) nebo zakladatel
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomToJoin = urlParams.get('room');
 
   // --- INICIALIZACE YOUTUBE API ---
   const tag = document.createElement('script');
@@ -83,7 +100,7 @@
     ytPlayer = new YT.Player('yt-player', {
       playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
       events: {
-        'onReady': () => { ytReady = true; console.log("YT Player připraven"); },
+        'onReady': () => { ytReady = true; },
         'onStateChange': onYtStateChange
       }
     });
@@ -91,36 +108,59 @@
 
   // --- LOGIKA PŘIPOJENÍ (PEERJS) ---
   peer = new Peer();
+  
   peer.on('open', (id) => {
-    document.getElementById('my-id').innerText = id;
+    if (roomToJoin) {
+      // JSEM HOST (Připojuji se ke kamarádovi)
+      document.getElementById('invite-link').value = "Jsi připojen jako host";
+      document.getElementById('copy-btn').style.display = 'none';
+      document.getElementById('join-overlay').style.display = 'flex'; // Zobrazíme výzvu ke vstupu
+    } else {
+      // JSEM ZAKLADATEL
+      const inviteUrl = window.location.origin + window.location.pathname + '?room=' + id;
+      document.getElementById('invite-link').value = inviteUrl;
+    }
   });
 
-  // Když se někdo připojí ke mně
+  // Když na můj odkaz někdo klikne (já jsem zakladatel a někdo se připojuje)
   peer.on('connection', (connection) => {
     setupConnection(connection);
+    
+    // Pokud už něco hraje, pošleme mu to po půl vteřině, ať to má taky
+    setTimeout(() => {
+      const currentUrl = document.getElementById('url-input').value.trim();
+      if (currentUrl && currentMode !== 'none') {
+        sendSync({ action: 'load', url: currentUrl });
+        
+        // Dodatečný sync času
+        const t = currentMode === 'yt' ? ytPlayer.getCurrentTime() : kickVideo.currentTime;
+        sendSync({ action: 'seek', time: t });
+      }
+    }, 800);
   });
 
-  // Když se já připojuji ke kamarádovi
-  function connectToPeer() {
-    const peerId = document.getElementById('peer-input').value.trim();
-    if (!peerId) return alert("Zadej ID kamaráda");
-    const connection = peer.connect(peerId, { reliable: true });
+  // Funkce pro hosta - jakmile klikne na "Vstoupit"
+  function acceptInvite() {
+    document.getElementById('join-overlay').style.display = 'none';
+    document.getElementById('conn-status').innerText = 'Připojuji...';
+    const connection = peer.connect(roomToJoin, { reliable: true });
     setupConnection(connection);
   }
 
+  // Společné nastavení spojení pro oba
   function setupConnection(connection) {
     if (conn) conn.close();
     conn = connection;
     
     conn.on('open', () => {
-      document.getElementById('conn-status').innerText = 'Připojeno';
+      document.getElementById('conn-status').innerText = 'Propojeno s kamarádem';
       document.getElementById('conn-status').classList.add('connected');
     });
     
     conn.on('data', handleSyncData);
     
     conn.on('close', () => {
-      document.getElementById('conn-status').innerText = 'Odpojeno';
+      document.getElementById('conn-status').innerText = 'Kamarád se odpojil';
       document.getElementById('conn-status').classList.remove('connected');
     });
   }
@@ -131,16 +171,24 @@
     }
   }
 
+  function copyLink() {
+    const linkInput = document.getElementById('invite-link');
+    linkInput.select();
+    navigator.clipboard.writeText(linkInput.value);
+    const btn = document.getElementById('copy-btn');
+    btn.innerText = 'Zkopírováno!';
+    setTimeout(() => btn.innerText = 'Kopírovat', 2000);
+  }
+
   // --- ZPRACOVÁNÍ PŘÍCHOZÍCH DAT ---
   function handleSyncData(data) {
-    isSyncing = true; // Zapneme pojistku, abychom odesílateli neposlali jeho vlastní akci zpět
+    isSyncing = true;
 
     if (data.action === 'load') {
       document.getElementById('url-input').value = data.url;
-      loadMedia(false); // false = neposílat znovu kamarádovi
+      loadMedia(false); 
     }
     
-    // YouTube synchronizace
     if (currentMode === 'yt' && ytReady) {
       if (data.action === 'play') {
         ytPlayer.seekTo(data.time, true);
@@ -153,7 +201,6 @@
       }
     }
     
-    // Kick synchronizace
     if (currentMode === 'kick') {
       if (data.action === 'play') {
         kickVideo.currentTime = data.time;
@@ -166,7 +213,6 @@
       }
     }
 
-    // Vypnutí pojistky po krátké prodlevě
     setTimeout(() => { isSyncing = false; }, 300);
   }
 
@@ -175,24 +221,19 @@
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
 
-    if (broadcast) {
-      sendSync({ action: 'load', url: url });
-    }
+    if (broadcast) sendSync({ action: 'load', url: url });
 
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
 
     if (ytMatch && ytReady) {
-      // Je to YouTube
       currentMode = 'yt';
       document.getElementById('layer-kick').classList.remove('active');
       document.getElementById('layer-yt').classList.add('active');
       
       if (hls) { hls.destroy(); kickVideo.pause(); }
-      
       ytPlayer.loadVideoById(ytMatch[1]);
       
     } else if (url.endsWith('.m3u8')) {
-      // Je to Kick / HLS
       currentMode = 'kick';
       document.getElementById('layer-yt').classList.remove('active');
       document.getElementById('layer-kick').classList.add('active');
@@ -231,13 +272,10 @@
     }
   }
 
-  // Detekce přetáčení u YouTube (YouTube nemá nativní událost "seeked", musíme to hlídat v intervalu)
   setInterval(() => {
     if (currentMode === 'yt' && ytReady && !isSyncing) {
       const state = ytPlayer.getPlayerState();
       const currentTime = ytPlayer.getCurrentTime();
-      
-      // Pokud se čas skokově změní o více než 1.5 sekundy a zrovna video hraje nebo je pozastavené
       if (Math.abs(currentTime - ytLastTime) > 1.5 && (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED)) {
         sendSync({ action: 'seek', time: currentTime });
       }
