@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synco - Kino Režim</title>
+<title>Synco - TAK HOP</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -202,7 +202,7 @@
   let playlist = []; 
   let currentYtId = null;
   let cachedComments = null; 
-  let sharedPlaybackRate = 1; // Paměť pro rychlost přehrávání
+  let sharedPlaybackRate = 1; // Výchozí rychlost
 
   const savedKey = localStorage.getItem('synco_yt_api_key');
   if (savedKey) { document.getElementById('yt-api-key').value = savedKey; }
@@ -361,7 +361,6 @@
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
         const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
         
-        // Předáváme i sharedPlaybackRate pro nového uživatele
         sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, rate: sharedPlaybackRate, playlist: playlist }, true);
 
         if (cachedComments && currentMode === 'yt') {
@@ -414,7 +413,7 @@
       document.getElementById('url-input').value = data.url;
       if (data.playlist) { playlist = data.playlist; saveLocalData(); renderPlaylist(); }
       
-      sharedPlaybackRate = data.rate || 1; // Načtení rychlosti z iniciálního balíčku
+      sharedPlaybackRate = data.rate || 1; 
       
       if (data.url) loadMedia(false); 
       
@@ -434,7 +433,12 @@
       return;
     }
 
-    if (data.action === 'load') { document.getElementById('url-input').value = data.url; loadMedia(false); syncTimeout = setTimeout(() => { isSyncing = false; }, 2000); return; }
+    if (data.action === 'load') { 
+      document.getElementById('url-input').value = data.url; 
+      loadMedia(false); 
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 2000); 
+      return; 
+    }
     
     if (data.action === 'queue_add') {
       if (!playlist.some(i => i.url === data.item.url)) { playlist.push(data.item); saveLocalData(); renderPlaylist(); }
@@ -567,6 +571,9 @@
     const url = document.getElementById('url-input').value.trim();
     if (!url) return;
 
+    // Reset rychlosti zpět na 1x při každém novém videu
+    sharedPlaybackRate = 1;
+
     saveLocalData(); renderPlaylist(); 
     if (broadcast) sendSync({ action: 'load', url: url });
 
@@ -591,7 +598,7 @@
         if (hls) hls.destroy();
         hls = new Hls(); hls.loadSource(url); hls.attachMedia(kickVideo);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          kickVideo.playbackRate = sharedPlaybackRate; // Ujistíme se, že i Kick má na začátku správnou rychlost
+          kickVideo.playbackRate = sharedPlaybackRate;
           kickVideo.play();
         });
       } else if (kickVideo.canPlayType('application/vnd.apple.mpegurl')) {
@@ -646,7 +653,6 @@
     });
   }
 
-  // Hlídání událostí Kick přehrávače
   kickVideo.addEventListener('play', () => {
     if (kickVideo.playbackRate !== sharedPlaybackRate) kickVideo.playbackRate = sharedPlaybackRate;
     if (isSyncing) return;
@@ -665,16 +671,15 @@
   
   kickVideo.addEventListener('ratechange', () => {
     if (isSyncing) return;
-    if (kickVideo.playbackRate === sharedPlaybackRate) return; // Ochrana proti zacyklení
+    if (kickVideo.playbackRate === sharedPlaybackRate) return; 
     sharedPlaybackRate = kickVideo.playbackRate;
     sendSync({ action: 'rate', rate: sharedPlaybackRate });
   });
 
-  // Hlídání událostí YouTube přehrávače
   function onYtStateChange(event) {
     if (event.data === YT.PlayerState.PLAYING) {
       if (ytPlayer.getPlaybackRate() !== sharedPlaybackRate) {
-        ytPlayer.setPlaybackRate(sharedPlaybackRate); // Vynucení společné rychlosti při puštění nového videa
+        ytPlayer.setPlaybackRate(sharedPlaybackRate); 
       }
     }
     
@@ -686,7 +691,7 @@
 
   function onYtRateChange(event) {
     if (isSyncing) return;
-    if (event.data === sharedPlaybackRate) return; // Ochrana proti zacyklení
+    if (event.data === sharedPlaybackRate) return; 
     sharedPlaybackRate = event.data;
     sendSync({ action: 'rate', rate: sharedPlaybackRate });
   }
