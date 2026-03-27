@@ -202,6 +202,7 @@
   let playlist = []; 
   let currentYtId = null;
   let cachedComments = null; 
+  let sharedPlaybackRate = 1; // Paměť pro rychlost přehrávání
 
   const savedKey = localStorage.getItem('synco_yt_api_key');
   if (savedKey) { document.getElementById('yt-api-key').value = savedKey; }
@@ -329,7 +330,7 @@
       events: { 
         'onReady': () => { ytReady = true; }, 
         'onStateChange': onYtStateChange,
-        'onPlaybackRateChange': onYtRateChange // Hlídání rychlosti přehrávání u YouTube
+        'onPlaybackRateChange': onYtRateChange
       }
     });
   };
@@ -359,15 +360,16 @@
         const currentUrl = document.getElementById('url-input').value.trim();
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
         const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
-        const currentRate = currentMode === 'yt' ? (ytReady ? ytPlayer.getPlaybackRate() : 1) : kickVideo.playbackRate;
         
-        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, rate: currentRate, playlist: playlist }, true);
+        // Předáváme i sharedPlaybackRate pro nového uživatele
+        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, rate: sharedPlaybackRate, playlist: playlist }, true);
 
         if (cachedComments && currentMode === 'yt') {
           setTimeout(() => {
             sendSync({ action: 'comments_data', items: cachedComments.items, totalResults: cachedComments.totalResults }, true);
           }, 800);
         }
+
       }, 500);
     });
 
@@ -411,16 +413,19 @@
     if (data.action === 'init') {
       document.getElementById('url-input').value = data.url;
       if (data.playlist) { playlist = data.playlist; saveLocalData(); renderPlaylist(); }
+      
+      sharedPlaybackRate = data.rate || 1; // Načtení rychlosti z iniciálního balíčku
+      
       if (data.url) loadMedia(false); 
       
       setTimeout(() => {
         if (currentMode === 'yt' && ytReady) { 
-          if(data.rate) ytPlayer.setPlaybackRate(data.rate);
+          ytPlayer.setPlaybackRate(sharedPlaybackRate);
           ytPlayer.seekTo(data.time, true); 
           if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo(); 
         } 
         else if (currentMode === 'kick') { 
-          if(data.rate) kickVideo.playbackRate = data.rate;
+          kickVideo.playbackRate = sharedPlaybackRate;
           kickVideo.currentTime = data.time; 
           if (data.playing) kickVideo.play(); else kickVideo.pause(); 
         }
@@ -450,10 +455,11 @@
     }
 
     if (data.action === 'rate') {
+      sharedPlaybackRate = data.rate;
       if (currentMode === 'yt' && ytReady) {
-        ytPlayer.setPlaybackRate(data.rate);
+        ytPlayer.setPlaybackRate(sharedPlaybackRate);
       } else if (currentMode === 'kick') {
-        kickVideo.playbackRate = data.rate;
+        kickVideo.playbackRate = sharedPlaybackRate;
       }
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300);
       return;
@@ -584,9 +590,14 @@
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
         hls = new Hls(); hls.loadSource(url); hls.attachMedia(kickVideo);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => kickVideo.play());
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          kickVideo.playbackRate = sharedPlaybackRate; // Ujistíme se, že i Kick má na začátku správnou rychlost
+          kickVideo.play();
+        });
       } else if (kickVideo.canPlayType('application/vnd.apple.mpegurl')) {
-        kickVideo.src = url; kickVideo.play();
+        kickVideo.src = url; 
+        kickVideo.playbackRate = sharedPlaybackRate;
+        kickVideo.play();
       }
     }
   }
@@ -635,28 +646,49 @@
     });
   }
 
-  // --- SLEDOVÁNÍ ZMĚN RYCHLOSTI A ČASU ---
-  kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
-  kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
-  kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
+  // Hlídání událostí Kick přehrávače
+  kickVideo.addEventListener('play', () => {
+    if (kickVideo.playbackRate !== sharedPlaybackRate) kickVideo.playbackRate = sharedPlaybackRate;
+    if (isSyncing) return;
+    sendSync({ action: 'play', time: kickVideo.currentTime });
+  });
   
-  // Změna rychlosti u Kick videa
+  kickVideo.addEventListener('pause', () => {
+    if (isSyncing) return;
+    sendSync({ action: 'pause', time: kickVideo.currentTime });
+  });
+  
+  kickVideo.addEventListener('seeked', () => {
+    if (isSyncing) return;
+    sendSync({ action: 'seek', time: kickVideo.currentTime });
+  });
+  
   kickVideo.addEventListener('ratechange', () => {
     if (isSyncing) return;
-    sendSync({ action: 'rate', rate: kickVideo.playbackRate });
+    if (kickVideo.playbackRate === sharedPlaybackRate) return; // Ochrana proti zacyklení
+    sharedPlaybackRate = kickVideo.playbackRate;
+    sendSync({ action: 'rate', rate: sharedPlaybackRate });
   });
 
+  // Hlídání událostí YouTube přehrávače
   function onYtStateChange(event) {
+    if (event.data === YT.PlayerState.PLAYING) {
+      if (ytPlayer.getPlaybackRate() !== sharedPlaybackRate) {
+        ytPlayer.setPlaybackRate(sharedPlaybackRate); // Vynucení společné rychlosti při puštění nového videa
+      }
+    }
+    
     if (isSyncing) return;
     const time = ytPlayer.getCurrentTime();
     if (event.data === YT.PlayerState.PLAYING) sendSync({ action: 'play', time: time });
     else if (event.data === YT.PlayerState.PAUSED) sendSync({ action: 'pause', time: time });
   }
 
-  // Změna rychlosti u YouTube videa
   function onYtRateChange(event) {
     if (isSyncing) return;
-    sendSync({ action: 'rate', rate: event.data });
+    if (event.data === sharedPlaybackRate) return; // Ochrana proti zacyklení
+    sharedPlaybackRate = event.data;
+    sendSync({ action: 'rate', rate: sharedPlaybackRate });
   }
 
   setInterval(() => {
