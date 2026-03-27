@@ -75,6 +75,7 @@
   .comment-text { color: var(--text-main); margin-top: 6px; word-break: break-word; }
   .comment-system { color: var(--text-muted); text-align: center; font-style: italic; padding: 20px 0; }
 
+  /* Playlist a Export úpravy */
   .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0; position: sticky; top: 15px; height: calc(100vh - 100px); }
   .playlist-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
   .playlist-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
@@ -84,6 +85,10 @@
   .playlist-items::-webkit-scrollbar { width: 6px; }
   .playlist-items::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
   
+  /* Nová patička pro tlačítka Import a Export */
+  .playlist-footer { padding: 12px 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: rgba(255,255,255,0.02); border-radius: 0 0 16px 16px; }
+  .playlist-footer button { flex: 1; font-size: 13px; padding: 8px 0; display: flex; justify-content: center; align-items: center; gap: 6px; }
+
   .playlist-item { background: var(--bg-app); border: 1px solid var(--border); padding: 8px; border-radius: 10px; cursor: grab; transition: all 0.2s ease; position: relative; display: flex; gap: 12px; align-items: center; padding-right: 40px; }
   .playlist-item:active { cursor: grabbing; }
   .playlist-item:hover { border-color: #3f3f46; transform: translateX(2px); }
@@ -96,12 +101,14 @@
   .playlist-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
   .playlist-title { font-size: 14px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .playlist-url { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  
+  /* OPRAVENÝ KŘÍŽEK: Už nebude uskakovat, když na něj najedeš! */
   .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 18px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; transition: 0.2s; }
-  .btn-remove:hover { background: var(--red-bg); color: var(--red); }
+  .btn-remove:hover { background: var(--red-bg); color: var(--red); transform: translateY(-50%); } 
 
   #start-overlay { position: fixed; inset: 0; background: rgba(9, 9, 11, 0.95); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .start-box { background: var(--bg-panel); border: 1px solid var(--border); padding: 50px 40px; border-radius: 20px; text-align: center; max-width: 440px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-  .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--teal-bg); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--teal); }
+  .start-box .icon { font-size: 40px; margin-bottom: 15px; display: inline-block; background: var(--purple-glow); width: 80px; height: 80px; line-height: 80px; border-radius: 50%; color: var(--purple); }
   .start-box h2 { color: var(--text-main); margin-bottom: 15px; font-size: 26px; }
   .start-box p { color: var(--text-muted); font-size: 15px; margin-bottom: 30px; line-height: 1.6; }
   .start-box button { font-size: 18px; padding: 14px 24px; width: 100%; border-radius: 12px; }
@@ -166,6 +173,12 @@
       <span class="count" id="playlist-count">0</span>
     </div>
     <div class="playlist-items" id="playlist-items"></div>
+    
+    <div class="playlist-footer">
+      <button class="secondary" onclick="importPlaylist()">📥 Import</button>
+      <button class="secondary" onclick="exportPlaylist()">📤 Export</button>
+    </div>
+    <input type="file" id="import-file" style="display: none;" accept=".json" onchange="handleImport(event)">
   </div>
 </div>
 
@@ -191,7 +204,7 @@
   const storageKey = 'synco-data-' + roomName;
   let playlist = []; 
   let currentYtId = null;
-  let cachedComments = null; // Paměť pro komenty, aby se daly poslat nově příchozím
+  let cachedComments = null; 
 
   const savedKey = localStorage.getItem('synco_yt_api_key');
   if (savedKey) { document.getElementById('yt-api-key').value = savedKey; }
@@ -220,6 +233,53 @@
       url: document.getElementById('url-input').value.trim(),
       playlist: playlist
     }));
+  }
+
+  // --- EXPORT A IMPORT LOGIKA ---
+  function exportPlaylist() {
+    if (playlist.length === 0) {
+      alert("Fronta je prázdná. Není co exportovat.");
+      return;
+    }
+    const dataStr = JSON.stringify(playlist, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().slice(0,10);
+    a.download = `synco_playlist_${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importPlaylist() {
+    document.getElementById('import-file').click();
+  }
+
+  function handleImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (Array.isArray(imported)) {
+          playlist = imported;
+          saveLocalData();
+          renderPlaylist();
+          // Okamžitě odešleme načtený playlist parťákovi!
+          if (conn && conn.open) {
+             sendSync({ action: 'queue_reorder', playlist: playlist }, true);
+          }
+        } else {
+          alert('Soubor nemá platný formát Synco playlistu.');
+        }
+      } catch (err) {
+        alert('Chyba při čtení souboru. Je to opravdu JSON?');
+      }
+      event.target.value = ''; // Reset, aby šel nahrát stejný soubor znovu
+    };
+    reader.readAsText(file);
   }
 
   function saveApiKeyAndFetch() {
@@ -301,10 +361,8 @@
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
         const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
         
-        // Zde odesíláme inicializační balíček přes "force" bypass, aby ho neblokoval isSyncing
         sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, playlist: playlist }, true);
 
-        // Pokud už máme stažené komentáře, rovnou je novému parťákovi pošleme!
         if (cachedComments && currentMode === 'yt') {
           setTimeout(() => {
             sendSync({ action: 'comments_data', items: cachedComments.items, totalResults: cachedComments.totalResults }, true);
@@ -335,7 +393,6 @@
     conn.on('close', () => { updateStatus('Parťák odpojen', 'error'); });
   }
 
-  // PŘIDÁNO: parametr "force", který umí přeskočit ping-pongovou pojistku isSyncing
   function sendSync(data, force = false) { 
     if (conn && conn.open && (!isSyncing || force)) conn.send(data); 
   }
@@ -379,7 +436,6 @@
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
     }
 
-    // Parťák nám poslal komentáře, vykreslíme si je a uložíme do paměti
     if (data.action === 'comments_data') {
       cachedComments = { items: data.items, totalResults: data.totalResults };
       renderComments(data.items, data.totalResults);
@@ -476,7 +532,7 @@
         if (draggedIdx < dropIndex) dropIndex--;
         const [movedItem] = playlist.splice(draggedIdx, 1);
         playlist.splice(dropIndex, 0, movedItem);
-        saveLocalData(); renderPlaylist(); sendSync({ action: 'queue_reorder', playlist: playlist });
+        saveLocalData(); renderPlaylist(); sendSync({ action: 'queue_reorder', playlist: playlist }, true);
       });
 
       div.onclick = () => { document.getElementById('url-input').value = item.url; loadMedia(true); };
@@ -533,12 +589,9 @@
       
       const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
       
-      // Uložíme je do paměti
       cachedComments = { items: snippets, totalResults: data.pageInfo?.totalResults };
-      
       renderComments(snippets, data.pageInfo?.totalResults);
       
-      // Odešleme parťákovi (použijeme force, abychom obešli pojistku proti zacyklení!)
       if (conn && conn.open) {
         sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults }, true);
       }
