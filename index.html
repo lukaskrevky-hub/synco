@@ -75,7 +75,6 @@
   .comment-text { color: var(--text-main); margin-top: 6px; word-break: break-word; }
   .comment-system { color: var(--text-muted); text-align: center; font-style: italic; padding: 20px 0; }
 
-  /* Playlist a Export úpravy */
   .playlist-panel { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0; position: sticky; top: 15px; height: calc(100vh - 100px); }
   .playlist-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
   .playlist-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
@@ -85,7 +84,6 @@
   .playlist-items::-webkit-scrollbar { width: 6px; }
   .playlist-items::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
   
-  /* Nová patička pro tlačítka Import a Export */
   .playlist-footer { padding: 12px 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: rgba(255,255,255,0.02); border-radius: 0 0 16px 16px; }
   .playlist-footer button { flex: 1; font-size: 13px; padding: 8px 0; display: flex; justify-content: center; align-items: center; gap: 6px; }
 
@@ -102,7 +100,6 @@
   .playlist-title { font-size: 14px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .playlist-url { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   
-  /* OPRAVENÝ KŘÍŽEK: Už nebude uskakovat, když na něj najedeš! */
   .btn-remove { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 18px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; transition: 0.2s; }
   .btn-remove:hover { background: var(--red-bg); color: var(--red); transform: translateY(-50%); } 
 
@@ -235,7 +232,6 @@
     }));
   }
 
-  // --- EXPORT A IMPORT LOGIKA ---
   function exportPlaylist() {
     if (playlist.length === 0) {
       alert("Fronta je prázdná. Není co exportovat.");
@@ -267,7 +263,6 @@
           playlist = imported;
           saveLocalData();
           renderPlaylist();
-          // Okamžitě odešleme načtený playlist parťákovi!
           if (conn && conn.open) {
              sendSync({ action: 'queue_reorder', playlist: playlist }, true);
           }
@@ -277,7 +272,7 @@
       } catch (err) {
         alert('Chyba při čtení souboru. Je to opravdu JSON?');
       }
-      event.target.value = ''; // Reset, aby šel nahrát stejný soubor znovu
+      event.target.value = ''; 
     };
     reader.readAsText(file);
   }
@@ -331,7 +326,11 @@
   window.onYouTubeIframeAPIReady = function() {
     ytPlayer = new YT.Player('yt-player', {
       playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1 },
-      events: { 'onReady': () => { ytReady = true; }, 'onStateChange': onYtStateChange }
+      events: { 
+        'onReady': () => { ytReady = true; }, 
+        'onStateChange': onYtStateChange,
+        'onPlaybackRateChange': onYtRateChange // Hlídání rychlosti přehrávání u YouTube
+      }
     });
   };
 
@@ -360,15 +359,15 @@
         const currentUrl = document.getElementById('url-input').value.trim();
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
         const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
+        const currentRate = currentMode === 'yt' ? (ytReady ? ytPlayer.getPlaybackRate() : 1) : kickVideo.playbackRate;
         
-        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, playlist: playlist }, true);
+        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, rate: currentRate, playlist: playlist }, true);
 
         if (cachedComments && currentMode === 'yt') {
           setTimeout(() => {
             sendSync({ action: 'comments_data', items: cachedComments.items, totalResults: cachedComments.totalResults }, true);
           }, 800);
         }
-
       }, 500);
     });
 
@@ -415,8 +414,16 @@
       if (data.url) loadMedia(false); 
       
       setTimeout(() => {
-        if (currentMode === 'yt' && ytReady) { ytPlayer.seekTo(data.time, true); if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo(); } 
-        else if (currentMode === 'kick') { kickVideo.currentTime = data.time; if (data.playing) kickVideo.play(); else kickVideo.pause(); }
+        if (currentMode === 'yt' && ytReady) { 
+          if(data.rate) ytPlayer.setPlaybackRate(data.rate);
+          ytPlayer.seekTo(data.time, true); 
+          if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo(); 
+        } 
+        else if (currentMode === 'kick') { 
+          if(data.rate) kickVideo.playbackRate = data.rate;
+          kickVideo.currentTime = data.time; 
+          if (data.playing) kickVideo.play(); else kickVideo.pause(); 
+        }
       }, 1500);
       syncTimeout = setTimeout(() => { isSyncing = false; }, 3000);
       return;
@@ -440,6 +447,16 @@
       cachedComments = { items: data.items, totalResults: data.totalResults };
       renderComments(data.items, data.totalResults);
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
+    }
+
+    if (data.action === 'rate') {
+      if (currentMode === 'yt' && ytReady) {
+        ytPlayer.setPlaybackRate(data.rate);
+      } else if (currentMode === 'kick') {
+        kickVideo.playbackRate = data.rate;
+      }
+      syncTimeout = setTimeout(() => { isSyncing = false; }, 300);
+      return;
     }
 
     if (currentMode === 'yt' && ytReady) {
@@ -618,15 +635,28 @@
     });
   }
 
+  // --- SLEDOVÁNÍ ZMĚN RYCHLOSTI A ČASU ---
   kickVideo.addEventListener('play', () => sendSync({ action: 'play', time: kickVideo.currentTime }));
   kickVideo.addEventListener('pause', () => sendSync({ action: 'pause', time: kickVideo.currentTime }));
   kickVideo.addEventListener('seeked', () => sendSync({ action: 'seek', time: kickVideo.currentTime }));
+  
+  // Změna rychlosti u Kick videa
+  kickVideo.addEventListener('ratechange', () => {
+    if (isSyncing) return;
+    sendSync({ action: 'rate', rate: kickVideo.playbackRate });
+  });
 
   function onYtStateChange(event) {
     if (isSyncing) return;
     const time = ytPlayer.getCurrentTime();
     if (event.data === YT.PlayerState.PLAYING) sendSync({ action: 'play', time: time });
     else if (event.data === YT.PlayerState.PAUSED) sendSync({ action: 'pause', time: time });
+  }
+
+  // Změna rychlosti u YouTube videa
+  function onYtRateChange(event) {
+    if (isSyncing) return;
+    sendSync({ action: 'rate', rate: event.data });
   }
 
   setInterval(() => {
