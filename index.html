@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synco - absolutní kino</title>
-
+<title>Synco - Kino Režim</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
-
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -16,38 +14,26 @@
     --bg-panel: #18181b;
     --bg-hover: #27272a;
     --border: #27272a;
-    
     --purple: #9333ea;
     --purple-hover: #a855f7;
     --purple-glow: rgba(147, 51, 234, 0.15);
-    
     --teal: #2dd4bf;
     --teal-bg: rgba(45, 212, 191, 0.1);
-    
     --red: #fb7185;
     --red-bg: rgba(251, 113, 133, 0.1);
-    
     --text-main: #f8fafc;
     --text-muted: #a1a1aa;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   
-  body { 
-    background: var(--bg-app); 
-    color: var(--text-main); 
-    font-family: 'Outfit', sans-serif; 
-    min-height: 100vh; 
-    overflow-y: auto; 
-    overflow-x: hidden; 
-  }
+  body { background: var(--bg-app); color: var(--text-main); font-family: 'Outfit', sans-serif; min-height: 100vh; overflow-y: auto; overflow-x: hidden; }
   
   .toolbar { background: var(--bg-panel); margin: 15px 15px 0 15px; padding: 12px 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10; }
   .logo { font-size: 20px; font-weight: 700; color: var(--text-main); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
   .logo span { color: var(--purple); }
   
   .group { display: flex; gap: 10px; align-items: center; }
-  .group-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
   
   input { background: var(--bg-app); border: 1px solid var(--border); color: var(--text-main); padding: 10px 14px; border-radius: 8px; flex: 1; outline: none; font-family: inherit; transition: 0.2s; }
   input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-glow); }
@@ -76,20 +62,11 @@
   video { width: 100%; height: 100%; outline: none; background: #000; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-  .chat-overlay { position: absolute; top: 0; right: 0; height: 100%; width: 340px; background: #0e0e10; z-index: 5; border-left: 1px solid rgba(255,255,255,0.1); transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -10px 0 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
-  .chat-overlay.active { transform: translateX(0); }
-  .chat-overlay iframe { flex: 1; width: 100%; border: none; }
-  .close-chat-btn { position: absolute; top: 15px; left: -45px; width: 32px; height: 32px; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; transition: 0.2s; box-shadow: -2px 2px 10px rgba(0,0,0,0.3); }
-  .close-chat-btn:hover { background: var(--bg-hover); color: var(--red); }
-
   .comments-container { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
   .comments-container.active { display: flex; }
-  
   .comments-header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); border-radius: 16px 16px 0 0; }
   .comments-header span { font-weight: 700; color: var(--text-main); font-size: 16px; }
-  
   .comments-list { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-  
   .comment { display: flex; gap: 15px; font-size: 14px; line-height: 1.5; }
   .comment img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
   .comment-content { flex: 1; min-width: 0; }
@@ -155,11 +132,6 @@
     <button class="secondary" onclick="saveApiKeyAndFetch()">Uložit</button>
   </div>
 
-  <div class="group" style="flex: 0 1 auto;">
-    <input type="text" id="kick-channel" placeholder="Kick jméno..." style="width: 100px;">
-    <button class="secondary" onclick="toggleKickChat(true, true)">Chat</button>
-  </div>
-  
   <div class="group" style="flex: 1; min-width: 250px;">
     <input type="text" id="url-input" placeholder="YouTube nebo Kick odkaz...">
     <button class="secondary" onclick="handleMediaAction('queue')">+ Do fronty</button>
@@ -176,11 +148,6 @@
     <div class="video-container">
       <div id="layer-yt" class="player-layer"><div id="yt-player"></div></div>
       <div id="layer-kick" class="player-layer"><video id="kick-player" controls></video></div>
-      
-      <div id="chat-overlay" class="chat-overlay">
-        <button class="close-chat-btn" onclick="toggleKickChat(false, true)" title="Zavřít chat">✕</button>
-        <iframe id="kick-chat-frame" src=""></iframe>
-      </div>
     </div>
     
     <div class="comments-container" id="comments-section">
@@ -224,6 +191,7 @@
   const storageKey = 'synco-data-' + roomName;
   let playlist = []; 
   let currentYtId = null;
+  let cachedComments = null; // Paměť pro komenty, aby se daly poslat nově příchozím
 
   const savedKey = localStorage.getItem('synco_yt_api_key');
   if (savedKey) { document.getElementById('yt-api-key').value = savedKey; }
@@ -262,26 +230,6 @@
     }
   }
 
-  function toggleKickChat(show, broadcast = false) {
-    const overlay = document.getElementById('chat-overlay');
-    const frame = document.getElementById('kick-chat-frame');
-    const channelInput = document.getElementById('kick-channel');
-    
-    if (show) {
-      const channel = channelInput.value.trim();
-      if (!channel) return;
-      if (!frame.src.includes(channel)) {
-        frame.src = `https://kick.com/popout/${channel}/chat`;
-      }
-      overlay.classList.add('active');
-      if (broadcast) sendSync({ action: 'kick_chat', show: true, channel: channel });
-    } else {
-      overlay.classList.remove('active');
-      setTimeout(() => { frame.src = ''; }, 300); 
-      if (broadcast) sendSync({ action: 'kick_chat', show: false, channel: '' });
-    }
-  }
-
   async function fetchMetadata(url) {
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     if (ytMatch) {
@@ -302,7 +250,6 @@
   const kickVideo = document.getElementById('kick-player');
   let hls = null;
 
-  /* AKTUALIZOVANÁ KONFIGURACE S TURN SERVERY PRO NEPRŮSTŘELNÉ SPOJENÍ */
   const peerConfig = { 
     config: { 
       iceServers: [
@@ -353,7 +300,17 @@
         const currentUrl = document.getElementById('url-input').value.trim();
         const t = currentMode === 'yt' ? (ytReady ? ytPlayer.getCurrentTime() : 0) : kickVideo.currentTime;
         const isPlaying = currentMode === 'yt' ? (ytReady && ytPlayer.getPlayerState() === 1) : !kickVideo.paused;
-        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, playlist: playlist });
+        
+        // Zde odesíláme inicializační balíček přes "force" bypass, aby ho neblokoval isSyncing
+        sendSync({ action: 'init', url: currentUrl, time: t, playing: isPlaying, playlist: playlist }, true);
+
+        // Pokud už máme stažené komentáře, rovnou je novému parťákovi pošleme!
+        if (cachedComments && currentMode === 'yt') {
+          setTimeout(() => {
+            sendSync({ action: 'comments_data', items: cachedComments.items, totalResults: cachedComments.totalResults }, true);
+          }, 800);
+        }
+
       }, 500);
     });
 
@@ -378,7 +335,10 @@
     conn.on('close', () => { updateStatus('Parťák odpojen', 'error'); });
   }
 
-  function sendSync(data) { if (conn && conn.open && !isSyncing) conn.send(data); }
+  // PŘIDÁNO: parametr "force", který umí přeskočit ping-pongovou pojistku isSyncing
+  function sendSync(data, force = false) { 
+    if (conn && conn.open && (!isSyncing || force)) conn.send(data); 
+  }
 
   function copyLink() {
     const linkInput = document.getElementById('invite-link');
@@ -419,14 +379,10 @@
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
     }
 
+    // Parťák nám poslal komentáře, vykreslíme si je a uložíme do paměti
     if (data.action === 'comments_data') {
+      cachedComments = { items: data.items, totalResults: data.totalResults };
       renderComments(data.items, data.totalResults);
-      syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
-    }
-
-    if (data.action === 'kick_chat') {
-      document.getElementById('kick-channel').value = data.channel;
-      toggleKickChat(data.show, false);
       syncTimeout = setTimeout(() => { isSyncing = false; }, 300); return;
     }
 
@@ -546,7 +502,7 @@
       ytPlayer.loadVideoById(currentYtId);
       fetchAndShareComments();
     } else if (url.endsWith('.m3u8')) {
-      currentMode = 'kick'; currentYtId = null;
+      currentMode = 'kick'; currentYtId = null; cachedComments = null;
       document.getElementById('layer-yt').classList.remove('active');
       document.getElementById('layer-kick').classList.add('active');
       document.getElementById('comments-section').classList.remove('active');
@@ -574,9 +530,18 @@
       const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${currentYtId}&maxResults=50&order=relevance&key=${apiKey}`);
       const data = await res.json();
       if (data.error) { list.innerHTML = `<div class="comment-system" style="color:var(--red)">Chyba API: ${data.error.message}</div>`; return; }
+      
       const snippets = data.items.map(i => i.snippet.topLevelComment.snippet);
+      
+      // Uložíme je do paměti
+      cachedComments = { items: snippets, totalResults: data.pageInfo?.totalResults };
+      
       renderComments(snippets, data.pageInfo?.totalResults);
-      if (conn && conn.open) sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults });
+      
+      // Odešleme parťákovi (použijeme force, abychom obešli pojistku proti zacyklení!)
+      if (conn && conn.open) {
+        sendSync({ action: 'comments_data', items: snippets, totalResults: data.pageInfo?.totalResults }, true);
+      }
     } catch(e) { list.innerHTML = '<div class="comment-system" style="color:var(--red)">Nepodařilo se načíst komentáře. Zkontroluj klíč.</div>'; }
   }
 
